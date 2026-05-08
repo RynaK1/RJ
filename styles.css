@@ -1,25 +1,35 @@
 :root {
-  --bg: #111214;
-  --panel: #1a1c20;
-  --muted: #a0a7b4;
-  --text: #f3f5f8;
-  --accent: #7aa6ff;
-  --accent-soft: #243656;
-  --border: #2a2f38;
-  --daily: #2a3f2e;
-  --weekly: #3f2a3a;
-  --primary: #1e2d47;
-  --error: #ff8c8c;
+  --bg: #282d33;
+  --panel: #313842;
+  --muted: #a7b0bb;
+  --text: #eef2f5;
+  --accent: #87a9c7;
+  --accent-soft: #3c4a59;
+  --border: #46515d;
+  --daily: #354756;
+  --weekly: #3a4058;
+  --primary: #443f33;
+  --danger-bg: #3f3232;
+  --danger-border: #86605e;
+  --danger-text: #efb5b0;
+  --task-bg: #29313a;
+  --task-hover: #333c47;
+  --error: #f0a6af;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
+body {
+  min-height: 100%;
+  background: var(--bg);
+}
+
 body {
   margin: 0;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  background: var(--bg);
   color: var(--text);
 }
 
@@ -40,9 +50,9 @@ body {
 }
 
 .status-pill {
-  background: #162334;
-  border: 1px solid #30527b;
-  color: #b8d6ff;
+  background: #33414d;
+  border: 1px solid #516272;
+  color: #c5d8e5;
   border-radius: 999px;
   padding: 0.35rem 0.7rem;
   font-size: 0.85rem;
@@ -60,7 +70,7 @@ body {
 button,
 select {
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--task-bg);
   color: var(--text);
   border-radius: 8px;
   padding: 0.45rem 0.8rem;
@@ -83,18 +93,33 @@ select {
 
 .tool-row {
   margin-top: 1rem;
-  display: flex;
-  gap: 0.6rem;
-  align-items: center;
 }
 
-.tool-row select {
+.bulk-delete-control {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.55rem;
+  padding: 0.45rem;
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  background: var(--danger-bg);
+}
+
+.bulk-delete-control label {
+  flex: 0 0 auto;
+  color: var(--danger-text);
+  font-size: 0.9rem;
+}
+
+.bulk-delete-control select {
   max-width: 180px;
 }
 
 .danger-btn {
-  border-color: #7a2f2f;
-  color: #ffbbbb;
+  border-color: var(--danger-border);
+  color: var(--danger-text);
 }
 
 .list-stack {
@@ -111,23 +136,27 @@ select {
 .todo-card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 1rem;
   min-width: 0;
+  box-shadow: 0 10px 24px rgba(7, 9, 7, 0.16);
 }
 
 .daily-card {
-  background: linear-gradient(180deg, var(--daily), #1a1c20);
+  background: var(--daily);
+  border-color: #506474;
   grid-area: daily;
 }
 
 .weekly-card {
-  background: linear-gradient(180deg, var(--weekly), #1a1c20);
+  background: var(--weekly);
+  border-color: #525a73;
   grid-area: weekly;
 }
 
 .todo-primary {
-  background: linear-gradient(180deg, var(--primary), #1a1c20);
+  background: var(--primary);
+  border-color: #615846;
   grid-area: todo;
 }
 
@@ -147,6 +176,18 @@ select {
   font-size: 0.85rem;
 }
 
+.empty-msg {
+  height: 0;
+  line-height: 1.2;
+  margin: 0;
+  overflow: visible;
+  transform: translateY(-0.85rem);
+}
+
+.empty-msg.during-final-exit {
+  transform: translateY(-0.85rem);
+}
+
 .add-task-form {
   margin: 0.55rem 0 0.35rem;
   display: flex;
@@ -156,7 +197,7 @@ select {
 input,
 select {
   width: 100%;
-  background: #13161a;
+  background: var(--task-bg);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -180,11 +221,12 @@ select {
 }
 
 .task-item {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
-  background: #14181d;
+  background: var(--task-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.5rem 0.55rem;
@@ -194,15 +236,80 @@ select {
 
 .task-item:hover {
   border-color: var(--accent);
-  background: #1a2029;
+  background: var(--task-hover);
+}
+
+.daily-card .task-item {
+  background: #3a4d5d;
+  border-color: #536879;
+}
+
+.daily-card .task-item:hover {
+  background: #425768;
+}
+
+.weekly-card .task-item {
+  background: #40465f;
+  border-color: #5b627b;
+}
+
+.weekly-card .task-item:hover {
+  background: #484f6a;
+}
+
+.todo-primary .task-item {
+  background: #4a4538;
+  border-color: #665d49;
+}
+
+.todo-primary .task-item:hover {
+  background: #524c3e;
+}
+
+.task-item.drop-before::before,
+.task-item.drop-after::after {
+  content: "";
+  position: absolute;
+  right: 0.35rem;
+  left: 0.35rem;
+  z-index: 2;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px rgba(135, 169, 199, 0.16);
+  pointer-events: none;
+}
+
+.task-item.drop-before::before {
+  top: -0.245rem;
+}
+
+.task-item.drop-after::after {
+  bottom: -0.245rem;
+}
+
+.task-item.append-enter {
+  animation: appendTask 260ms ease-out;
+  transform-origin: top left;
+}
+
+.task-item.is-exiting {
+  overflow: hidden;
+  pointer-events: none;
+  will-change: max-height, padding, margin, clip-path, opacity;
+}
+
+.task-item.complete-exit {
+  animation: completeTask 280ms ease-out forwards;
+}
+
+.task-item.remove-exit {
+  animation: removeTask 280ms ease-in forwards;
 }
 
 .task-item.dragging {
-  opacity: 0.5;
-}
-
-.task-item.drop-target {
-  border-color: #9bc1ff;
+  opacity: 0.42;
+  border-color: var(--accent);
 }
 
 .task-main {
@@ -233,7 +340,7 @@ select {
 
 .delete-btn {
   border: 0;
-  color: #8a93a3;
+  color: #9aa49a;
   font-size: 0.78rem;
   padding: 0.2rem 0.35rem;
   opacity: 0;
@@ -251,7 +358,69 @@ select {
 
 .delete-btn:hover {
   opacity: 1;
-  color: #d8deea;
+  color: var(--danger-text);
+}
+
+@keyframes appendTask {
+  from {
+    opacity: 0;
+    transform: translateY(-0.9rem) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes completeTask {
+  from {
+    border-width: 1px;
+    margin-bottom: 0;
+    max-height: var(--task-exit-height);
+    opacity: 1;
+    padding-bottom: 0.5rem;
+    padding-top: 0.5rem;
+    transform: scale(1);
+  }
+
+  to {
+    border-width: 0;
+    margin-bottom: -0.45rem;
+    max-height: 0;
+    opacity: 0;
+    padding-bottom: 0;
+    padding-top: 0;
+    transform: scale(0.985);
+  }
+}
+
+@keyframes removeTask {
+  from {
+    border-width: 1px;
+    clip-path: inset(0 0 0 0);
+    margin-bottom: 0;
+    max-height: var(--task-exit-height);
+    padding-bottom: 0.5rem;
+    padding-top: 0.5rem;
+  }
+
+  to {
+    border-width: 0;
+    clip-path: inset(0 0 0 100%);
+    margin-bottom: -0.45rem;
+    max-height: 0;
+    padding-bottom: 0;
+    padding-top: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-item.append-enter,
+  .task-item.complete-exit,
+  .task-item.remove-exit {
+    animation: none;
+  }
 }
 
 .option-row {
@@ -261,6 +430,19 @@ select {
 .option-row label {
   display: block;
   margin-bottom: 0.35rem;
+}
+
+.checkbox-option label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0;
+}
+
+.checkbox-option input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 .sr-only {
@@ -282,5 +464,19 @@ select {
       "daily"
       "weekly"
       "todo";
+  }
+}
+
+@media (max-width: 560px) {
+  .bulk-delete-control {
+    align-items: stretch;
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .bulk-delete-control label,
+  .bulk-delete-control select {
+    width: 100%;
+    max-width: none;
   }
 }

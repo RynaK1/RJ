@@ -19,14 +19,16 @@
       </nav>
 
       <section id="lists-view" class="view active">
-        <section class="tool-row">
-          <label for="bulk-delete-list" class="sr-only">Delete list contents</label>
-          <select id="bulk-delete-list">
-            <option value="todo">To-Do</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-          </select>
-          <button id="bulk-delete-btn" class="danger-btn">Delete List Contents</button>
+        <section class="tool-row" aria-label="Bulk delete">
+          <div class="bulk-delete-control">
+            <label for="bulk-delete-list">Delete contents from</label>
+            <select id="bulk-delete-list">
+              <option value="todo">To-Do</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+            <button id="bulk-delete-btn" class="danger-btn">Delete</button>
+          </div>
         </section>
 
         <div class="list-stack">
@@ -46,7 +48,7 @@
             </form>
             <p id="daily-error" class="form-msg" role="alert"></p>
             <ul id="daily-list" class="task-list"></ul>
-            <p id="daily-empty" class="empty-msg">No tasks in this tab yet.</p>
+            <p id="daily-empty" class="empty-msg">No tasks</p>
           </section>
 
           <section class="todo-card weekly-card" data-list="weekly">
@@ -65,7 +67,7 @@
             </form>
             <p id="weekly-error" class="form-msg" role="alert"></p>
             <ul id="weekly-list" class="task-list"></ul>
-            <p id="weekly-empty" class="empty-msg">No tasks in this tab yet.</p>
+            <p id="weekly-empty" class="empty-msg">No tasks</p>
           </section>
 
           <section class="todo-card todo-primary" data-list="todo">
@@ -81,7 +83,7 @@
             </form>
             <p id="todo-error" class="form-msg" role="alert"></p>
             <ul id="todo-list" class="task-list"></ul>
-            <p id="todo-empty" class="empty-msg">No tasks in this tab yet.</p>
+            <p id="todo-empty" class="empty-msg">No tasks</p>
           </section>
         </div>
       </section>
@@ -91,19 +93,14 @@
           <h2>Options</h2>
           <h3>Reset Settings</h3>
           <div class="option-row">
-            <label for="reset-time">Reset time</label>
-            <input id="reset-time" type="time" />
-          </div>
-          <div class="option-row">
-            <label for="weekly-reset-day">Weekly reset day</label>
-            <select id="weekly-reset-day">
-              <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
-              <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
-            </select>
-          </div>
-          <div class="option-row">
             <label for="timezone-offset">Time zone</label>
             <select id="timezone-offset"></select>
+          </div>
+          <div class="option-row checkbox-option">
+            <label for="dst-adjustment">
+              <input id="dst-adjustment" type="checkbox" />
+              <span>Daylight saving time (+1 hour)</span>
+            </label>
           </div>
         </section>
       </section>
