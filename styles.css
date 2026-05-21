@@ -61,9 +61,11 @@ body {
   gap: var(--space-md);
   width: 100%;
   max-width: 1300px;
+  height: 100vh;
   min-height: 100vh;
   margin: 0 auto;
   padding: 1.65rem 1.25rem;
+  overflow: hidden;
 }
 
 .app-header {
@@ -319,6 +321,7 @@ input:focus-visible {
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 .rj-progress {
