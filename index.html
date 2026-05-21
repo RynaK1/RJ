@@ -3,48 +3,83 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SchedMS - MapleStory To-Do</title>
+    <title>SchedMS - Daily Planner</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app">
       <header class="app-header">
-        <h1>SchedMS</h1>
+        <div class="header-controls">
+          <button
+            id="settings-open-btn"
+            class="settings-trigger"
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="settings-modal"
+            aria-label="Open settings"
+            title="Settings"
+          >
+            <span aria-hidden="true">&#9881;</span>
+          </button>
+          <div class="list-set-switcher" role="group" aria-label="List set">
+            <button class="list-set-switch" type="button" data-list-set="rj">R&amp;J</button>
+            <button class="list-set-switch active" type="button" data-list-set="schedms">SchedMS</button>
+          </div>
+        </div>
+        <div class="pixel-party" aria-hidden="true">
+          <span class="pixel-character pixel-character-scout">
+            <span class="pixel-hair"></span>
+            <span class="pixel-face"></span>
+            <span class="pixel-body"></span>
+            <span class="pixel-boots"></span>
+          </span>
+          <span class="pixel-character pixel-character-mage">
+            <span class="pixel-hair"></span>
+            <span class="pixel-face"></span>
+            <span class="pixel-body"></span>
+            <span class="pixel-boots"></span>
+          </span>
+        </div>
         <div class="status-pill" id="save-status">Auto-saved</div>
       </header>
 
-      <nav class="top-tabs" aria-label="Main navigation tabs">
-        <button class="top-tab active" data-view="lists">Lists</button>
-        <button class="top-tab" data-view="options">Options</button>
-      </nav>
-
-      <section id="lists-view" class="view active">
-        <section class="tool-row" aria-label="Bulk delete">
-          <div class="bulk-delete-control">
-            <label for="bulk-delete-list">Delete contents from</label>
-            <select id="bulk-delete-list">
-              <option value="todo">To-Do</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-            </select>
-            <button id="bulk-delete-btn" class="danger-btn">Delete</button>
+      <section id="lists-view">
+        <section class="rj-progress" aria-label="R&J completion progress" hidden>
+          <div class="progress-labels">
+            <span>0%</span>
+            <strong id="rj-progress-label">0%</strong>
+            <span>100%</span>
+          </div>
+          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="rj-progress-fill" class="progress-fill"></div>
           </div>
         </section>
-
         <div class="list-stack">
           <section class="todo-card daily-card" data-list="daily">
             <div class="card-header">
               <h2>Daily</h2>
-              <span id="daily-reset-label" class="reset-label"></span>
-            </div>
-            <div class="status-tabs" role="tablist" aria-label="Daily status tabs">
-              <button class="status-tab active" data-list="daily" data-filter="unfinished">Unfinished</button>
-              <button class="status-tab" data-list="daily" data-filter="finished">Finished</button>
+              <div class="card-meta">
+                <span id="daily-reset-label" class="reset-label"></span>
+                <div class="delete-control" data-delete-control="daily">
+                  <button class="list-delete-btn" type="button" data-delete-list="daily">Delete</button>
+                  <div id="daily-delete-confirm" class="delete-confirm" data-confirm-list="daily" role="alertdialog" hidden>
+                    <span>Delete all?</span>
+                    <div class="confirm-actions">
+                      <button class="confirm-cancel-btn" type="button" data-cancel-delete="daily">Cancel</button>
+                      <button class="confirm-delete-btn" type="button" data-confirm-delete="daily">Delete</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <form class="add-task-form" data-list="daily">
               <label class="sr-only" for="daily-input">Add daily task</label>
-              <input id="daily-input" type="text" maxlength="120" placeholder="Add daily task" required />
-              <button type="submit">Add</button>
+              <input id="daily-input" type="text" maxlength="100" placeholder="Add something for today" required />
+              <button class="add-task-submit-btn" type="submit" aria-label="Add daily task" title="Add task">+</button>
+              <button class="edit-cancel-btn" type="button" data-cancel-edit="daily" aria-label="Cancel edit" title="Cancel edit" hidden>
+                &times;
+              </button>
             </form>
             <p id="daily-error" class="form-msg" role="alert"></p>
             <ul id="daily-list" class="task-list"></ul>
@@ -54,56 +89,149 @@
           <section class="todo-card weekly-card" data-list="weekly">
             <div class="card-header">
               <h2>Weekly</h2>
-              <span id="weekly-reset-label" class="reset-label"></span>
-            </div>
-            <div class="status-tabs" role="tablist" aria-label="Weekly status tabs">
-              <button class="status-tab active" data-list="weekly" data-filter="unfinished">Unfinished</button>
-              <button class="status-tab" data-list="weekly" data-filter="finished">Finished</button>
+              <div class="card-meta">
+                <span id="weekly-reset-label" class="reset-label"></span>
+                <div class="delete-control" data-delete-control="weekly">
+                  <button class="list-delete-btn" type="button" data-delete-list="weekly">Delete</button>
+                  <div id="weekly-delete-confirm" class="delete-confirm" data-confirm-list="weekly" role="alertdialog" hidden>
+                    <span>Delete all?</span>
+                    <div class="confirm-actions">
+                      <button class="confirm-cancel-btn" type="button" data-cancel-delete="weekly">Cancel</button>
+                      <button class="confirm-delete-btn" type="button" data-confirm-delete="weekly">Delete</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <form class="add-task-form" data-list="weekly">
               <label class="sr-only" for="weekly-input">Add weekly task</label>
-              <input id="weekly-input" type="text" maxlength="120" placeholder="Add weekly task" required />
-              <button type="submit">Add</button>
+              <input id="weekly-input" type="text" maxlength="100" placeholder="Add weekly focus" required />
+              <button class="add-task-submit-btn" type="submit" aria-label="Add weekly task" title="Add task">+</button>
+              <button class="edit-cancel-btn" type="button" data-cancel-edit="weekly" aria-label="Cancel edit" title="Cancel edit" hidden>
+                &times;
+              </button>
             </form>
             <p id="weekly-error" class="form-msg" role="alert"></p>
             <ul id="weekly-list" class="task-list"></ul>
             <p id="weekly-empty" class="empty-msg">No tasks</p>
           </section>
 
-          <section class="todo-card todo-primary" data-list="todo">
-            <div class="card-header"><h2>To-Do</h2></div>
-            <div class="status-tabs" role="tablist" aria-label="To-Do status tabs">
-              <button class="status-tab active" data-list="todo" data-filter="unfinished">Unfinished</button>
-              <button class="status-tab" data-list="todo" data-filter="finished">Finished</button>
+          <section class="todo-card persistent-card" data-list="persistent">
+            <div class="card-header">
+              <h2>To-Do</h2>
             </div>
-            <form class="add-task-form" data-list="todo">
-              <label class="sr-only" for="todo-input">Add task</label>
-              <input id="todo-input" type="text" maxlength="120" placeholder="Add task" required />
-              <button type="submit">Add</button>
+            <form class="add-task-form" data-list="persistent">
+              <label class="sr-only" for="persistent-input">Add to-do task</label>
+              <input id="persistent-input" type="text" maxlength="100" placeholder="Add to-do item" required />
+              <button class="add-task-submit-btn" type="submit" aria-label="Add to-do task" title="Add task">+</button>
+              <button
+                class="edit-cancel-btn"
+                type="button"
+                data-cancel-edit="persistent"
+                aria-label="Cancel edit"
+                title="Cancel edit"
+                hidden
+              >
+                &times;
+              </button>
+              <button
+                id="recurring-toggle-btn"
+                class="recurring-toggle-btn"
+                type="button"
+                aria-expanded="false"
+                aria-controls="recurring-form"
+              >
+                Make recurring
+              </button>
             </form>
-            <p id="todo-error" class="form-msg" role="alert"></p>
-            <ul id="todo-list" class="task-list"></ul>
-            <p id="todo-empty" class="empty-msg">No tasks</p>
+            <div id="recurring-tools" class="recurring-tools" hidden>
+              <div id="recurring-form" class="recurring-form" hidden>
+                <label class="sr-only" for="recurring-interval">Repeat interval</label>
+                <select id="recurring-interval" aria-label="Repeat interval">
+                  <option value="1">Everyday</option>
+                  <option value="7">Weekly</option>
+                </select>
+                <fieldset class="recurring-days-field">
+                  <legend>Show on</legend>
+                  <div id="recurring-show-days" class="day-picker" aria-label="Show recurring task on days"></div>
+                </fieldset>
+              </div>
+            </div>
+            <p id="recurring-error" class="form-msg recurring-msg" role="alert"></p>
+            <p id="persistent-error" class="form-msg" role="alert"></p>
+            <ul id="persistent-list" class="task-list"></ul>
+            <p id="persistent-empty" class="empty-msg">No tasks</p>
           </section>
+
+          <aside id="recurring-panel" class="recurring-panel" aria-label="Recurring tasks" hidden>
+            <button
+              id="recurring-panel-toggle"
+              class="recurring-panel-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="recurring-panel-content"
+              aria-label="Recurring tasks"
+              title="Recurring tasks"
+            >
+              <span class="recurring-panel-toggle-copy" aria-hidden="true">&#8635;</span>
+              <span id="recurring-panel-count" class="sr-only">0</span>
+            </button>
+            <section id="recurring-panel-content" class="recurring-panel-content" hidden>
+              <div class="recurring-panel-header">
+                <h2>Recurring</h2>
+              </div>
+              <ul id="recurring-panel-list" class="recurring-panel-list"></ul>
+              <p id="recurring-panel-empty" class="empty-msg">No recurring tasks</p>
+            </section>
+          </aside>
         </div>
       </section>
 
-      <section id="options-view" class="view">
-        <section class="todo-card options-card">
-          <h2>Options</h2>
-          <h3>Reset Settings</h3>
+      <div id="settings-modal" class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+        <button class="settings-backdrop" type="button" data-settings-close aria-label="Close settings"></button>
+        <section class="todo-card options-card settings-dialog">
+          <div class="settings-dialog-header">
+            <h2 id="settings-title">Settings</h2>
+            <button id="settings-close-btn" class="settings-close-btn" type="button" aria-label="Close settings">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
           <div class="option-row">
             <label for="timezone-offset">Time zone</label>
             <select id="timezone-offset"></select>
           </div>
+          <div class="option-row">
+            <label for="week-start-day">SchedMS Reset Day</label>
+            <select id="week-start-day"></select>
+          </div>
           <div class="option-row checkbox-option">
             <label for="dst-adjustment">
               <input id="dst-adjustment" type="checkbox" />
-              <span>Daylight saving time (+1 hour)</span>
+              <span>Daylight saving time</span>
             </label>
           </div>
+          <div class="option-row delete-option">
+            <div class="delete-control settings-delete-control" data-delete-control="persistent">
+              <button class="list-delete-btn settings-delete-btn" type="button" data-delete-list="persistent">
+                Delete All Tasks
+              </button>
+              <div
+                id="persistent-delete-confirm"
+                class="delete-confirm settings-delete-confirm"
+                data-confirm-list="persistent"
+                role="alertdialog"
+                hidden
+              >
+                <span>Delete all?</span>
+                <div class="confirm-actions">
+                  <button class="confirm-cancel-btn" type="button" data-cancel-delete="persistent">Cancel</button>
+                  <button class="confirm-delete-btn" type="button" data-confirm-delete="persistent">Delete</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
-      </section>
+      </div>
     </main>
 
     <script src="app.js"></script>
