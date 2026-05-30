@@ -143,6 +143,27 @@
               >
                 Make recurring
               </button>
+              <aside id="recurring-panel" class="recurring-panel" aria-label="Recurring tasks" hidden>
+                <button
+                  id="recurring-panel-toggle"
+                  class="recurring-panel-toggle"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="recurring-panel-content"
+                  aria-label="Recurring tasks"
+                  title="Recurring tasks"
+                >
+                  <span class="recurring-panel-toggle-copy" aria-hidden="true">&#8635;</span>
+                  <span id="recurring-panel-count" class="sr-only">0</span>
+                </button>
+                <section id="recurring-panel-content" class="recurring-panel-content" hidden>
+                  <div class="recurring-panel-header">
+                    <h2>Recurring</h2>
+                  </div>
+                  <ul id="recurring-panel-list" class="recurring-panel-list"></ul>
+                  <p id="recurring-panel-empty" class="empty-msg">No recurring tasks</p>
+                </section>
+              </aside>
             </form>
             <div id="recurring-tools" class="recurring-tools" hidden>
               <div id="recurring-form" class="recurring-form" hidden>
@@ -162,28 +183,6 @@
             <ul id="persistent-list" class="task-list"></ul>
             <p id="persistent-empty" class="empty-msg">No tasks</p>
           </section>
-
-          <aside id="recurring-panel" class="recurring-panel" aria-label="Recurring tasks" hidden>
-            <button
-              id="recurring-panel-toggle"
-              class="recurring-panel-toggle"
-              type="button"
-              aria-expanded="false"
-              aria-controls="recurring-panel-content"
-              aria-label="Recurring tasks"
-              title="Recurring tasks"
-            >
-              <span class="recurring-panel-toggle-copy" aria-hidden="true">&#8635;</span>
-              <span id="recurring-panel-count" class="sr-only">0</span>
-            </button>
-            <section id="recurring-panel-content" class="recurring-panel-content" hidden>
-              <div class="recurring-panel-header">
-                <h2>Recurring</h2>
-              </div>
-              <ul id="recurring-panel-list" class="recurring-panel-list"></ul>
-              <p id="recurring-panel-empty" class="empty-msg">No recurring tasks</p>
-            </section>
-          </aside>
         </div>
       </section>
 
@@ -199,10 +198,6 @@
           <div class="option-row">
             <label for="timezone-offset">Time zone</label>
             <select id="timezone-offset"></select>
-          </div>
-          <div class="option-row">
-            <label for="week-start-day">SchedMS Reset Day</label>
-            <select id="week-start-day"></select>
           </div>
           <div class="option-row checkbox-option">
             <label for="dst-adjustment">

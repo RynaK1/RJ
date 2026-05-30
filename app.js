@@ -14,7 +14,7 @@ const LIST_SET_LABELS = {
 const ADD_TASK_SYMBOL = "+";
 const SAVE_TASK_SYMBOL = "✓";
 const DEFAULT_TIMEZONE_OFFSET = "-08:00";
-const DEFAULT_WEEK_START_DAY = 1;
+const SCHEDMS_WEEKLY_RESET_DAY_UTC = 4;
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAY_SHORT_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const RECURRING_PANEL_MOTION_MS = 130;
@@ -65,7 +65,6 @@ const defaultState = {
   settings: {
     timezoneOffset: DEFAULT_TIMEZONE_OFFSET,
     daylightSavingsAdjustment: 0,
-    weekStartDay: DEFAULT_WEEK_START_DAY,
   },
   activeListSet: DEFAULT_LIST_SET_ID,
   listSets: {
@@ -171,7 +170,6 @@ const els = {
   dailyResetLabel: document.getElementById("daily-reset-label"),
   weeklyResetLabel: document.getElementById("weekly-reset-label"),
   timezoneOffset: document.getElementById("timezone-offset"),
-  weekStartDay: document.getElementById("week-start-day"),
   dstAdjustment: document.getElementById("dst-adjustment"),
   saveStatus: document.getElementById("save-status"),
 };
@@ -180,7 +178,6 @@ initialize();
 
 function initialize() {
   populateTimezoneOptions();
-  populateWeekStartOptions();
   populateRecurringShowDayOptions();
   updateRecurringShowDaysVisibility();
   hydrateSettingsUI();
@@ -202,15 +199,6 @@ function populateTimezoneOptions() {
     option.value = value;
     option.textContent = label;
     els.timezoneOffset.appendChild(option);
-  });
-}
-
-function populateWeekStartOptions() {
-  DAY_NAMES.forEach((dayName, dayIndex) => {
-    const option = document.createElement("option");
-    option.value = String(dayIndex);
-    option.textContent = dayName;
-    els.weekStartDay.appendChild(option);
   });
 }
 
@@ -302,13 +290,6 @@ function wireEvents() {
 
   els.timezoneOffset.addEventListener("change", () => {
     state.settings.timezoneOffset = els.timezoneOffset.value;
-    saveState();
-    runTimedUpdatesIfNeeded();
-    renderAll();
-  });
-
-  els.weekStartDay.addEventListener("change", () => {
-    state.settings.weekStartDay = normalizeWeekStartDay(els.weekStartDay.value);
     saveState();
     runTimedUpdatesIfNeeded();
     renderAll();
@@ -420,6 +401,7 @@ function applyRecurringTaskFields(task, shouldResetDone) {
   if (shouldResetDone) {
     task.done = false;
     task.lastCompletedDate = "";
+    delete task.lastRestoredDate;
   }
 }
 
@@ -429,6 +411,7 @@ function clearRecurringTaskFields(task) {
   delete task.showDays;
   delete task.recurringStartDate;
   delete task.lastCompletedDate;
+  delete task.lastRestoredDate;
   delete task.nextDueDate;
 }
 
@@ -1321,6 +1304,25 @@ function renderRecurringPanel() {
       renderAll();
     };
 
+    const restoreRecurringTask = () => {
+      if (!task.done || didDelete) {
+        return;
+      }
+
+      const beforePositions = captureTaskPositions("persistent");
+      moveTaskAfterDoneChange("persistent", task.id, false);
+      saveState();
+      renderAll();
+      animateListReflow("persistent", beforePositions);
+    };
+
+    if (task.done) {
+      li.tabIndex = 0;
+      li.setAttribute("role", "button");
+      li.setAttribute("aria-label", `Show recurring task on To-Do list: ${task.text}`);
+      li.title = "Show on To-Do list";
+    }
+
     deleteBtn.addEventListener("pointerdown", (event) => {
       if (event.button !== 0 || deleteBtn.disabled) {
         return;
@@ -1334,6 +1336,23 @@ function renderRecurringPanel() {
     deleteBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       deleteRecurringTask();
+    });
+
+    li.addEventListener("click", (event) => {
+      if (event.target.closest(".task-action-btn")) {
+        return;
+      }
+
+      restoreRecurringTask();
+    });
+
+    li.addEventListener("keydown", (event) => {
+      if (event.target.closest(".task-action-btn") || !["Enter", " "].includes(event.key)) {
+        return;
+      }
+
+      event.preventDefault();
+      restoreRecurringTask();
     });
 
     copy.append(title, meta);
@@ -1363,6 +1382,10 @@ function orderRjPersistentTasks(tasks) {
 }
 
 function getVisibleTasksForList(listType, tasks) {
+  if (isSchedmsTimedList(listType)) {
+    return tasks;
+  }
+
   return tasks.filter((task) => isTaskVisibleInList(listType, task));
 }
 
@@ -1371,7 +1394,13 @@ function isTaskVisibleInList(listType, task) {
     return true;
   }
 
-  return !task.done && doesRecurringTaskShowToday(task);
+  const wasRestoredToday = normalizeDateId(task.lastRestoredDate) === dailyPeriodId(new Date());
+
+  return !task.done && (wasRestoredToday || doesRecurringTaskShowToday(task));
+}
+
+function isSchedmsTimedList(listType) {
+  return state.activeListSet === "schedms" && (listType === "daily" || listType === "weekly");
 }
 
 function usesRecurringTaskGrouping(listType) {
@@ -1411,8 +1440,11 @@ function moveTaskAfterDoneChange(listType, taskId, done) {
       task.lastCompletedDate = dailyPeriodId(new Date());
       task.recurringStartDate = normalizeDateId(task.recurringStartDate) || task.lastCompletedDate;
       task.nextDueDate = normalizeDateId(task.nextDueDate) || addDaysToDateId(task.recurringStartDate, task.intervalDays);
+      delete task.lastRestoredDate;
     } else {
-      task.recurringStartDate = dailyPeriodId(new Date());
+      const todayId = dailyPeriodId(new Date());
+      task.recurringStartDate = todayId;
+      task.lastRestoredDate = todayId;
       task.nextDueDate = addDaysToDateId(task.recurringStartDate, task.intervalDays);
     }
 
@@ -2160,7 +2192,6 @@ function mergeVisibleTaskOrder(groupTasks, reorderedVisibleTasks, listType) {
 
 function hydrateSettingsUI() {
   els.timezoneOffset.value = state.settings.timezoneOffset;
-  els.weekStartDay.value = String(state.settings.weekStartDay);
   els.dstAdjustment.checked = state.settings.daylightSavingsAdjustment === 1;
 }
 
@@ -2205,25 +2236,22 @@ function refreshRecurringTasksIfNeeded() {
 
 function runResetsIfNeeded() {
   const now = new Date();
-  const nextDailyPeriodId = dailyPeriodId(now);
-  const nextWeeklyPeriodId = weeklyPeriodId(now);
+  const nextDailyPeriodId = schedmsDailyPeriodId(now);
+  const nextWeeklyPeriodId = schedmsWeeklyPeriodId(now);
+  const listSet = state.listSets.schedms;
   let didReset = false;
 
-  LIST_SET_IDS.forEach((listSetId) => {
-    const listSet = state.listSets[listSetId];
+  if (listSet.periodIds.daily !== nextDailyPeriodId) {
+    listSet.periodIds.daily = nextDailyPeriodId;
+    listSet.tasks.daily = listSet.tasks.daily.map((task) => ({ ...task, done: false }));
+    didReset = true;
+  }
 
-    if (listSet.periodIds.daily !== nextDailyPeriodId) {
-      listSet.periodIds.daily = nextDailyPeriodId;
-      listSet.tasks.daily = listSet.tasks.daily.map((task) => ({ ...task, done: false }));
-      didReset = true;
-    }
-
-    if (listSet.periodIds.weekly !== nextWeeklyPeriodId) {
-      listSet.periodIds.weekly = nextWeeklyPeriodId;
-      listSet.tasks.weekly = listSet.tasks.weekly.map((task) => ({ ...task, done: false }));
-      didReset = true;
-    }
-  });
+  if (listSet.periodIds.weekly !== nextWeeklyPeriodId) {
+    listSet.periodIds.weekly = nextWeeklyPeriodId;
+    listSet.tasks.weekly = listSet.tasks.weekly.map((task) => ({ ...task, done: false }));
+    didReset = true;
+  }
 
   if (didReset) {
     saveState();
@@ -2243,11 +2271,6 @@ function normalizeTimezoneOffset(offset) {
 function normalizeDstAdjustment(value) {
   const adjustment = Number(value);
   return [0, 1].includes(adjustment) ? adjustment : 0;
-}
-
-function normalizeWeekStartDay(value) {
-  const dayIndex = Number(value);
-  return Number.isInteger(dayIndex) && dayIndex >= 0 && dayIndex <= 6 ? dayIndex : DEFAULT_WEEK_START_DAY;
 }
 
 function normalizeRecurringIntervalDays(value) {
@@ -2464,30 +2487,52 @@ function dailyPeriodId(now) {
   return formatDateParts(currentPlannerDate(now));
 }
 
-function weeklyPeriodId(now) {
-  return formatDateParts(startOfPlannerWeek(currentPlannerDate(now)));
+function schedmsDailyPeriodId(now) {
+  return formatDateParts(now);
 }
 
-function startOfPlannerWeek(plannerDate) {
-  const pivot = new Date(plannerDate);
-  const diffDays = (plannerDate.getUTCDay() - state.settings.weekStartDay + 7) % 7;
-  pivot.setUTCHours(0, 0, 0, 0);
-  pivot.setUTCDate(plannerDate.getUTCDate() - diffDays);
-  return pivot;
+function schedmsWeeklyPeriodId(now) {
+  const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const diffDays = (now.getUTCDay() - SCHEDMS_WEEKLY_RESET_DAY_UTC + DAY_NAMES.length) % DAY_NAMES.length;
+  periodStart.setUTCDate(periodStart.getUTCDate() - diffDays);
+  return formatDateParts(periodStart);
+}
+
+function nextUtcDailyResetDate(now = new Date()) {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+}
+
+function nextUtcWeeklyResetDate(now = new Date()) {
+  const nextReset = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const daysUntilReset = (SCHEDMS_WEEKLY_RESET_DAY_UTC - now.getUTCDay() + DAY_NAMES.length) % DAY_NAMES.length;
+  nextReset.setUTCDate(nextReset.getUTCDate() + daysUntilReset);
+
+  if (nextReset <= now) {
+    nextReset.setUTCDate(nextReset.getUTCDate() + DAY_NAMES.length);
+  }
+
+  return nextReset;
+}
+
+function currentResetDisplayDate(date = new Date()) {
+  return toTimezoneDate(
+    date,
+    state.settings.timezoneOffset,
+    state.settings.daylightSavingsAdjustment
+  );
 }
 
 function renderResetLabels() {
-  const today = currentPlannerDate();
-  const weekStart = startOfPlannerWeek(today);
+  const dailyReset = currentResetDisplayDate(nextUtcDailyResetDate());
+  const weeklyReset = currentResetDisplayDate(nextUtcWeeklyResetDate());
 
-  els.dailyResetLabel.textContent = formatPlannerDate(today, {
+  els.dailyResetLabel.textContent = `Reset: ${formatPlannerDate(dailyReset, {
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
+  els.weeklyResetLabel.textContent = `Reset: ${formatPlannerDate(weeklyReset, {
     weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-  els.weeklyResetLabel.textContent = `Week of ${formatPlannerDate(weekStart, {
-    weekday: "short",
-    month: "short",
+    month: "long",
     day: "numeric",
   })}`;
 }
@@ -2516,6 +2561,7 @@ function normalizeTaskSet(taskSet) {
         normalizedTask.showDays = normalizeRecurringShowDays(task?.showDays);
         normalizedTask.recurringStartDate = normalizeDateId(task?.recurringStartDate);
         normalizedTask.lastCompletedDate = normalizeDateId(task?.lastCompletedDate);
+        normalizedTask.lastRestoredDate = normalizeDateId(task?.lastRestoredDate);
         normalizedTask.nextDueDate = normalizeDateId(task?.nextDueDate);
       }
 
@@ -2567,7 +2613,6 @@ function loadState() {
       settings: {
         timezoneOffset: normalizeTimezoneOffset(parsed?.settings?.timezoneOffset),
         daylightSavingsAdjustment: normalizeDstAdjustment(parsed?.settings?.daylightSavingsAdjustment),
-        weekStartDay: normalizeWeekStartDay(parsed?.settings?.weekStartDay),
       },
       activeListSet: normalizeListSetId(parsed?.activeListSet),
       listSets,

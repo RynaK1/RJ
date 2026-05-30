@@ -1,24 +1,27 @@
 :root {
-  --bg: #fbfcf6;
-  --panel: #f8fcf4;
-  --muted: #687064;
-  --text: #263126;
-  --accent: #c8915d;
-  --accent-soft: #6f9c86;
-  --focus-ring: rgba(111, 156, 134, 0.28);
-  --control-bg: #eef3ea;
-  --control-border: #b8c4b8;
-  --control-hover: #e4ece2;
-  --border: #b9c5ba;
-  --daily: #d9ded5;
-  --weekly: #d2e6e5;
-  --persistent: #ecd0a8;
-  --danger-bg: #efd1cb;
-  --danger-border: #bc867e;
-  --danger-text: #693a34;
-  --task-bg: #fffaf0;
-  --task-hover: #f2eadc;
-  --error: #8b4a42;
+  --bg: #5d7163;
+  --panel: #5d7163;
+  --muted: #f4efd8;
+  --text: #f4efd8;
+  --accent: #f4efd8;
+  --accent-soft: #4b5f52;
+  --focus-ring: rgba(244, 239, 216, 0.3);
+  --control-bg: #5d7163;
+  --control-border: #f4efd8;
+  --control-hover: #53675a;
+  --border: #f4efd8;
+  --daily: #5d7163;
+  --weekly: #5d7163;
+  --persistent: #5d7163;
+  --danger-bg: #4b5f52;
+  --danger-border: #f4efd8;
+  --danger-text: #f4efd8;
+  --task-bg: #5d7163;
+  --task-hover: #53675a;
+  --error: #f4efd8;
+  --scrollbar-thumb: rgba(244, 239, 216, 0.54);
+  --scrollbar-thumb-hover: rgba(244, 239, 216, 0.76);
+  --scrollbar-track: rgba(75, 95, 82, 0.38);
   --space-xs: 0.45rem;
   --space-sm: 0.65rem;
   --space-md: 1rem;
@@ -42,15 +45,16 @@ body {
 
 body.rj-mode,
 body:has(.app.rj-mode) {
-  background: #fbfcf6;
-  color: #263126;
+  background: var(--bg);
+  color: var(--text);
 }
 
 body {
   display: flex;
   margin: 0;
-  font-family: Aptos, Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  font-family: Aptos, "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   color: var(--text);
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
 }
@@ -212,7 +216,7 @@ body {
   line-height: 1;
   background: #eef3ea;
   border-color: #b8c4b8;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 248, 0.56), 0 8px 18px rgba(55, 72, 54, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.56), 0 8px 18px rgba(55, 72, 54, 0.12);
 }
 
 .settings-trigger:hover {
@@ -246,7 +250,7 @@ body {
 .list-set-switch.active {
   background: var(--accent-soft);
   border-color: var(--accent);
-  color: #fbfcf6;
+  color: var(--text);
 }
 
 .status-pill {
@@ -284,7 +288,7 @@ button {
 button:not(:disabled):not(.settings-backdrop):hover {
   background: var(--button-hover-bg);
   border-color: var(--button-hover-border);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 248, 0.46), 0 2px 8px rgba(55, 72, 54, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.46), 0 2px 8px rgba(55, 72, 54, 0.08);
 }
 
 button:not(:disabled):not(.settings-backdrop):active {
@@ -302,7 +306,7 @@ button:disabled {
 .list-set-switch.active:hover {
   background: var(--accent-soft);
   border-color: var(--accent);
-  color: #fbfcf6;
+  color: var(--text);
 }
 
 .list-set-switch.active:active {
@@ -348,7 +352,7 @@ input:focus-visible {
 }
 
 .app.rj-mode .progress-track {
-  background: #f8fcf4;
+  background: #e8eee3;
   border-color: #9fb0a4;
 }
 
@@ -402,24 +406,27 @@ input:focus-visible {
 }
 
 .app.rj-mode {
-  --bg: #fbfcf6;
-  --panel: #d9ded5;
-  --muted: #526356;
-  --text: #263126;
-  --accent: #3f6651;
-  --accent-soft: #374836;
-  --focus-ring: rgba(63, 102, 81, 0.3);
-  --border: #9fb0a4;
-  --control-bg: #f8fcf4;
-  --control-border: #a9b8ac;
-  --control-hover: #e1efe4;
-  --danger-bg: #efd1cb;
-  --danger-border: #bc867e;
-  --danger-text: #693a34;
-  --persistent: #d9ded5;
-  --task-bg: #f8fcf4;
-  --task-hover: #e5f0e7;
-  --error: #8b4a42;
+  --bg: #5d7163;
+  --panel: #5d7163;
+  --muted: #f4efd8;
+  --text: #f4efd8;
+  --accent: #f4efd8;
+  --accent-soft: #4b5f52;
+  --focus-ring: rgba(244, 239, 216, 0.3);
+  --border: #f4efd8;
+  --control-bg: #5d7163;
+  --control-border: #f4efd8;
+  --control-hover: #53675a;
+  --danger-bg: #4b5f52;
+  --danger-border: #f4efd8;
+  --danger-text: #f4efd8;
+  --persistent: #5d7163;
+  --task-bg: #5d7163;
+  --task-hover: #53675a;
+  --error: #f4efd8;
+  --scrollbar-thumb: rgba(244, 239, 216, 0.54);
+  --scrollbar-thumb-hover: rgba(244, 239, 216, 0.76);
+  --scrollbar-track: rgba(75, 95, 82, 0.38);
   background: var(--bg);
   color: var(--text);
   height: 100vh;
@@ -431,9 +438,9 @@ input:focus-visible {
   --button-hover-bg: #e8efe7;
   --button-active-bg: #d9e5dc;
   color: #263126;
-  background: #f8fcf4;
+  background: #e8eee3;
   border-color: #a9b8ac;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 248, 0.62), 0 8px 18px rgba(55, 72, 54, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.62), 0 8px 18px rgba(55, 72, 54, 0.12);
 }
 
 .app.rj-mode .settings-trigger:hover {
@@ -443,7 +450,7 @@ input:focus-visible {
 
 .app.rj-mode .status-pill {
   color: #526356;
-  background: #f8fcf4;
+  background: #e8eee3;
   border-color: #a9b8ac;
 }
 
@@ -601,13 +608,13 @@ input:focus-visible {
 
 .weekly-card {
   background: var(--weekly);
-  border-color: #acd0cf;
+  border-color: var(--border);
   grid-area: weekly;
 }
 
 .persistent-card {
   background: var(--persistent);
-  border-color: #d8b680;
+  border-color: #8f9c8b;
   grid-area: persistent;
   padding: 1.25rem;
 }
@@ -659,7 +666,7 @@ input:focus-visible {
 }
 
 .app.rj-mode .recurring-panel-toggle {
-  background: #f8fcf4;
+  background: #e8eee3;
   border-color: #a9b8ac;
   color: #263126;
 }
@@ -694,7 +701,7 @@ input:focus-visible {
 }
 
 .app.rj-mode .recurring-panel-count {
-  color: #fbfcf6;
+  color: var(--text);
   background: #3f6651;
   border-color: rgba(55, 72, 54, 0.42);
 }
@@ -711,7 +718,7 @@ input:focus-visible {
   min-width: 0;
   padding: 0.75rem;
   overflow: hidden;
-  background: #f8fcf4;
+  background: #e8eee3;
   border: 1px solid #b8c4b8;
   border-radius: 8px;
   box-shadow: 0 18px 46px rgba(55, 72, 54, 0.14);
@@ -772,7 +779,7 @@ input:focus-visible {
 }
 
 .app.rj-mode .recurring-summary-item {
-  background: #f8fcf4;
+  background: #e8eee3;
   border-color: #a9b8ac;
 }
 
@@ -837,7 +844,7 @@ input:focus-visible {
 }
 
 .recurring-summary-status.active {
-  color: #fbfcf6;
+  color: var(--text);
   background: var(--accent-soft);
   border-color: var(--accent);
 }
@@ -1039,13 +1046,13 @@ input:focus-visible {
 
 .add-task-submit-btn {
   --button-hover-bg: #5d8873;
-  --button-hover-border: #c8915d;
+  --button-hover-border: var(--accent);
   --button-active-bg: #4d7461;
-  --button-active-border: #ad7a4e;
-  color: #fbfcf6;
+  --button-active-border: #0b241a;
+  color: var(--text);
   background: var(--accent-soft);
   border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 248, 0.3), 0 8px 16px rgba(55, 72, 54, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.3), 0 8px 16px rgba(55, 72, 54, 0.1);
   font-size: 1.45rem;
   font-weight: 900;
 }
@@ -1123,7 +1130,7 @@ input:focus-visible {
 }
 
 .app.rj-mode .recurring-toggle-btn {
-  background: #f8fcf4;
+  background: #e8eee3;
   border-color: #a9b8ac;
   color: #263126;
 }
@@ -1145,7 +1152,7 @@ input:focus-visible {
 .recurring-toggle-btn.active {
   background: var(--accent-soft);
   border-color: var(--accent);
-  color: #fbfcf6;
+  color: var(--text);
 }
 
 .add-task-form.recurring-create-mode input {
@@ -1287,7 +1294,7 @@ input.edit-morph-target {
 
 .app.rj-mode .day-chip span {
   color: #263126;
-  background: #f8fcf4;
+  background: #e8eee3;
   border-color: #a9b8ac;
 }
 
@@ -1301,7 +1308,7 @@ input.edit-morph-target {
 .app.rj-mode .day-chip span:hover {
   background: var(--control-hover);
   border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 248, 0.42), 0 2px 8px rgba(55, 72, 54, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.42), 0 2px 8px rgba(55, 72, 54, 0.08);
 }
 
 .day-chip span:active,
@@ -1314,23 +1321,23 @@ input.edit-morph-target {
 
 .day-chip input:checked + span,
 .app.rj-mode .day-chip input:checked + span {
-  color: #fbfcf6;
+  color: var(--text);
   background: var(--accent-soft);
   border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 248, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.18);
 }
 
 .day-chip input:checked + span:hover,
 .app.rj-mode .day-chip input:checked + span:hover {
   background: #5d8873;
-  border-color: #c8915d;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 248, 0.24), 0 2px 8px rgba(55, 72, 54, 0.1);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.24), 0 2px 8px rgba(55, 72, 54, 0.1);
 }
 
 .day-chip input:checked + span:active,
 .app.rj-mode .day-chip input:checked + span:active {
   background: #4d7461;
-  border-color: #ad7a4e;
+  border-color: #0b241a;
   box-shadow: inset 0 2px 5px rgba(55, 72, 54, 0.14);
 }
 
@@ -1339,8 +1346,8 @@ input.edit-morph-target {
   --button-hover-border: #374836;
   --button-active-bg: #374836;
   --button-active-border: #263126;
-  color: #fbfcf6;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 248, 0.14), 0 8px 18px rgba(55, 72, 54, 0.12);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.14), 0 8px 18px rgba(55, 72, 54, 0.12);
 }
 
 .app.rj-mode .edit-cancel-btn {
@@ -1349,7 +1356,7 @@ input.edit-morph-target {
   --button-active-bg: #d9e5dc;
   --button-active-border: #374836;
   color: #526356;
-  background: #f8fcf4;
+  background: #e8eee3;
   border-color: #a9b8ac;
 }
 
@@ -1368,7 +1375,7 @@ input.edit-morph-target {
 }
 
 .app.rj-mode .day-chip span:hover {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 248, 0.42), 0 2px 8px rgba(55, 72, 54, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.42), 0 2px 8px rgba(55, 72, 54, 0.08);
 }
 
 .app.rj-mode .day-chip span:active {
@@ -1378,16 +1385,16 @@ input.edit-morph-target {
 }
 
 .app.rj-mode .day-chip input:checked + span {
-  color: #fbfcf6;
+  color: var(--text);
   background: #3f6651;
   border-color: #374836;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 248, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.14);
 }
 
 .app.rj-mode .day-chip input:checked + span:hover {
   background: #374836;
   border-color: #263126;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 248, 0.14), 0 2px 8px rgba(55, 72, 54, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.14), 0 2px 8px rgba(55, 72, 54, 0.1);
 }
 
 .app.rj-mode .day-chip input:checked + span:active {
@@ -1530,35 +1537,35 @@ input::placeholder {
 }
 
 .weekly-card .task-item {
-  background: #e9f5f4;
-  border-color: #acd0cf;
+  background: var(--task-bg);
+  border-color: var(--border);
 }
 
 .weekly-card .task-list {
-  --list-scroll-thumb: #a6cdcb;
-  --list-scroll-thumb-hover: #8bb8b6;
-  --list-scroll-track: rgba(172, 208, 207, 0.34);
+  --list-scroll-thumb: #9aa493;
+  --list-scroll-thumb-hover: #7f8a79;
+  --list-scroll-track: rgba(154, 164, 147, 0.34);
 }
 
 .weekly-card .task-item:hover {
-  background: #dcefed;
+  background: var(--task-hover);
 }
 
 .persistent-card .task-item {
-  background: #f6e2c2;
-  border-color: #d8b680;
+  background: var(--task-bg);
+  border-color: #8f9c8b;
 }
 
 .app.rj-mode .persistent-card .task-item {
-  background: #f8fcf4;
+  background: #e8eee3;
   border-color: #a9b8ac;
   color: var(--text);
 }
 
 .persistent-card .task-list {
-  --list-scroll-thumb: #d3b076;
-  --list-scroll-thumb-hover: #bd9861;
-  --list-scroll-track: rgba(216, 182, 128, 0.3);
+  --list-scroll-thumb: #9aa493;
+  --list-scroll-thumb-hover: #7f8a79;
+  --list-scroll-track: rgba(154, 164, 147, 0.3);
 }
 
 .app.rj-mode .persistent-card .task-list {
@@ -1568,7 +1575,7 @@ input::placeholder {
 }
 
 .persistent-card .task-item:hover {
-  background: #eed4ad;
+  background: var(--task-hover);
 }
 
 .app.rj-mode .persistent-card .task-item:hover {
@@ -1619,21 +1626,21 @@ input::placeholder {
 }
 
 .weekly-card .task-item.done {
-  background: #d6e9e7;
-  border-color: #9fc2c0;
+  background: #e2e6dc;
+  border-color: #aab4a7;
 }
 
 .weekly-card .task-item.done:hover {
-  background: #c9dfdd;
+  background: #d9dfd4;
 }
 
 .persistent-card .task-item.done {
-  background: #ead2aa;
-  border-color: #c9a66e;
+  background: #e2e6dc;
+  border-color: #aab4a7;
 }
 
 .persistent-card .task-item.done:hover {
-  background: #e1c392;
+  background: #d9dfd4;
 }
 
 .app.rj-mode .persistent-card .task-item.done {
@@ -2113,6 +2120,1228 @@ input::placeholder {
   border: 0;
 }
 
+/* Mature minimal refresh */
+body.rj-mode,
+body:has(.app.rj-mode) {
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  line-height: 1.48;
+}
+
+.app {
+  max-width: 1240px;
+  padding: 1.35rem 1.15rem;
+}
+
+.app-header {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(207, 216, 200, 0.28);
+}
+
+.pixel-party {
+  display: none;
+}
+
+.settings-trigger {
+  width: 2.55rem;
+  height: 2.55rem;
+  color: var(--text);
+  background: var(--control-bg);
+  border-color: var(--border);
+  box-shadow: none;
+  font-size: 1.05rem;
+}
+
+.settings-trigger:hover {
+  background: var(--control-hover);
+  border-color: var(--accent);
+}
+
+.list-set-switcher {
+  gap: 0;
+  padding: 0.18rem;
+  background: var(--control-bg);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.list-set-switch {
+  min-width: 5.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.list-set-switch.active,
+.list-set-switch.active:hover {
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+
+.status-pill {
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+  padding-right: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+button,
+select,
+input {
+  border-color: var(--border);
+  background: var(--task-bg);
+}
+
+button {
+  --button-hover-bg: var(--control-hover);
+  --button-hover-border: var(--accent);
+  --button-active-bg: #5a6d60;
+  --button-active-border: var(--accent);
+  font-weight: 500;
+}
+
+button:not(:disabled):not(.settings-backdrop):hover {
+  box-shadow: none;
+}
+
+button:not(:disabled):not(.settings-backdrop):active {
+  box-shadow: inset 0 1px 4px rgba(19, 36, 27, 0.32);
+}
+
+#lists-view {
+  padding-top: 0.1rem;
+}
+
+.list-stack {
+  gap: 1rem;
+  margin-top: 0.1rem;
+}
+
+.todo-card {
+  background: var(--panel);
+  border-color: var(--border);
+  border-top-width: 2px;
+  box-shadow: 0 1px 2px rgba(5, 12, 8, 0.28), 0 18px 44px rgba(5, 12, 8, 0.2);
+}
+
+.todo-card h2,
+.recurring-panel-header h2 {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.daily-card {
+  border-color: var(--border);
+  border-top-color: var(--accent-soft);
+}
+
+.weekly-card {
+  border-color: var(--border);
+  border-top-color: var(--accent);
+}
+
+.persistent-card {
+  border-color: var(--border);
+  border-top-color: var(--accent);
+}
+
+.reset-label,
+.empty-msg,
+.form-msg {
+  color: var(--muted);
+}
+
+.reset-label {
+  font-size: 0.8rem;
+}
+
+.add-task-form {
+  margin-top: 0.9rem;
+}
+
+input,
+select {
+  min-height: 2.45rem;
+  color: var(--text);
+  background: var(--control-bg);
+  border-color: var(--border);
+  font-weight: 400;
+}
+
+input::placeholder {
+  color: var(--text);
+  opacity: 1;
+}
+
+.app.rj-mode input::placeholder {
+  color: var(--text);
+  opacity: 1;
+}
+
+.add-task-submit-btn {
+  --button-hover-bg: var(--accent);
+  --button-hover-border: var(--accent);
+  --button-active-bg: #0b241a;
+  --button-active-border: #0b241a;
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  box-shadow: none;
+}
+
+.edit-cancel-btn,
+.recurring-toggle-btn,
+.recurring-panel-toggle {
+  color: var(--muted);
+  background: var(--panel);
+  border-color: var(--border);
+}
+
+.task-item,
+.daily-card .task-item,
+.weekly-card .task-item,
+.persistent-card .task-item,
+.app.rj-mode .persistent-card .task-item,
+.app.rj-mode .persistent-card .task-item.recurring-task {
+  background: var(--task-bg);
+  border-color: rgba(207, 216, 200, 0.46);
+  box-shadow: none;
+}
+
+.task-item:hover,
+.daily-card .task-item:hover,
+.weekly-card .task-item:hover,
+.persistent-card .task-item:hover,
+.app.rj-mode .persistent-card .task-item:hover,
+.app.rj-mode .persistent-card .task-item.recurring-task:hover {
+  background: var(--task-hover);
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
+.task-item.done,
+.daily-card .task-item.done,
+.weekly-card .task-item.done,
+.persistent-card .task-item.done,
+.app.rj-mode .persistent-card .task-item.done,
+.app.rj-mode .persistent-card .task-item.recurring-task.done {
+  background: #4c5d51;
+  border-color: rgba(207, 216, 200, 0.36);
+  opacity: 0.78;
+}
+
+.task-item.done:hover,
+.daily-card .task-item.done:hover,
+.weekly-card .task-item.done:hover,
+.persistent-card .task-item.done:hover,
+.app.rj-mode .persistent-card .task-item.done:hover,
+.app.rj-mode .persistent-card .task-item.recurring-task.done:hover {
+  background: #526458;
+}
+
+.task-action-btn {
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+}
+
+.task-action-btn:hover {
+  background: var(--control-hover);
+  border-color: var(--control-border);
+  color: var(--text);
+}
+
+.task-badge,
+.task-days-left,
+.recurring-summary-status {
+  color: var(--text);
+  background: rgba(19, 36, 27, 0.28);
+  border-color: rgba(207, 216, 200, 0.34);
+}
+
+.app.rj-mode .task-days-left,
+.app.rj-mode .task-action-btn,
+.recurring-summary-meta,
+.recurring-days-field legend,
+.progress-labels,
+.app.rj-mode .progress-labels {
+  color: var(--muted);
+}
+
+.progress-labels strong,
+.app.rj-mode .progress-labels strong {
+  color: var(--text);
+}
+
+.app.rj-mode .task-action-btn:hover {
+  color: var(--text);
+}
+
+.recurring-panel-count,
+.app.rj-mode .recurring-panel-count {
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: rgba(207, 216, 200, 0.34);
+}
+
+.app.rj-mode .recurring-panel-content {
+  color: var(--text);
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: 0 1px 2px rgba(5, 12, 8, 0.28), 0 18px 44px rgba(5, 12, 8, 0.2);
+}
+
+.recurring-summary-item,
+.app.rj-mode .recurring-summary-item {
+  color: var(--text);
+  background: var(--task-bg);
+  border-color: rgba(207, 216, 200, 0.42);
+}
+
+.recurring-summary-item.is-active,
+.app.rj-mode .recurring-summary-item.is-active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(207, 216, 200, 0.22);
+}
+
+.recurring-summary-status.active,
+.recurring-toggle-btn.active,
+.day-chip input:checked + span,
+.app.rj-mode .day-chip input:checked + span {
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.app.rj-mode .recurring-summary-title,
+.app.rj-mode .recurring-summary-meta {
+  color: var(--text);
+}
+
+.app.rj-mode .recurring-summary-status {
+  color: var(--text);
+  background: rgba(19, 36, 27, 0.28);
+  border-color: rgba(207, 216, 200, 0.34);
+}
+
+.recurring-form,
+.app.rj-mode .recurring-form {
+  background: rgba(19, 36, 27, 0.24);
+  border-color: rgba(207, 216, 200, 0.38);
+}
+
+.recurring-days-field.show-days-open,
+.app.rj-mode .recurring-days-field.show-days-open {
+  border-color: rgba(207, 216, 200, 0.38);
+}
+
+.day-chip span,
+.app.rj-mode .day-chip span {
+  color: var(--text);
+  background: var(--task-bg);
+  border-color: rgba(207, 216, 200, 0.42);
+}
+
+.day-chip span:hover,
+.app.rj-mode .day-chip span:hover {
+  background: var(--task-hover);
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
+.day-chip span:active,
+.app.rj-mode .day-chip span:active,
+.day-chip input:checked + span:hover,
+.app.rj-mode .day-chip input:checked + span:hover,
+.day-chip input:checked + span:active,
+.app.rj-mode .day-chip input:checked + span:active {
+  background: var(--control-hover);
+  border-color: var(--accent);
+  box-shadow: inset 0 1px 4px rgba(19, 36, 27, 0.32);
+}
+
+.task-list,
+.recurring-panel-list,
+.daily-card .task-list,
+.weekly-card .task-list,
+.persistent-card .task-list,
+.app.rj-mode .persistent-card .task-list {
+  --list-scroll-thumb: var(--scrollbar-thumb);
+  --list-scroll-thumb-hover: var(--scrollbar-thumb-hover);
+  --list-scroll-track: var(--scrollbar-track);
+  scrollbar-color: var(--list-scroll-thumb) var(--list-scroll-track);
+}
+
+.recurring-panel-list::-webkit-scrollbar {
+  width: 0.55rem;
+}
+
+.recurring-panel-list::-webkit-scrollbar-track {
+  background: var(--list-scroll-track);
+  border-radius: 999px;
+}
+
+.recurring-panel-list::-webkit-scrollbar-thumb {
+  background: var(--list-scroll-thumb);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+.recurring-panel-list::-webkit-scrollbar-thumb:hover {
+  background: var(--list-scroll-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.rj-progress,
+.app.rj-mode .rj-progress,
+.settings-dialog,
+.recurring-panel-content {
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: 0 18px 44px rgba(5, 12, 8, 0.24);
+}
+
+.progress-track {
+  background: var(--task-bg);
+  border-color: var(--control-border);
+}
+
+.progress-fill,
+.app.rj-mode .progress-fill {
+  background: var(--accent);
+}
+
+.settings-backdrop,
+.app.rj-mode .settings-backdrop {
+  background: rgba(5, 12, 8, 0.66);
+}
+
+.delete-option {
+  border-top-color: rgba(207, 216, 200, 0.26);
+}
+
+.list-delete-btn,
+.confirm-delete-btn {
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+  background: transparent;
+}
+
+.confirm-delete-btn {
+  background: var(--danger-bg);
+}
+
+.delete-confirm {
+  background: #f2dfda;
+  border-color: var(--danger-border);
+}
+
+.app.rj-mode {
+  --bg: #5d7163;
+  --panel: #5d7163;
+  --muted: #f4efd8;
+  --text: #f4efd8;
+  --accent: #f4efd8;
+  --accent-soft: #4b5f52;
+  --focus-ring: rgba(244, 239, 216, 0.3);
+  --border: #f4efd8;
+  --control-bg: #5d7163;
+  --control-border: #f4efd8;
+  --control-hover: #53675a;
+  --persistent: #5d7163;
+  --task-bg: #5d7163;
+  --task-hover: #53675a;
+  --scrollbar-thumb: rgba(244, 239, 216, 0.54);
+  --scrollbar-thumb-hover: rgba(244, 239, 216, 0.76);
+  --scrollbar-track: rgba(75, 95, 82, 0.38);
+  background: var(--bg);
+}
+
+.app.rj-mode .settings-trigger,
+.app.rj-mode .persistent-card,
+.app.rj-mode .recurring-panel-toggle {
+  color: var(--text);
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.app.rj-mode .status-pill {
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.app.rj-mode .todo-card {
+  box-shadow: 0 1px 2px rgba(5, 12, 8, 0.28), 0 18px 44px rgba(5, 12, 8, 0.2);
+}
+
+/* Two-color planner palette */
+html,
+body,
+body.rj-mode,
+body:has(.app.rj-mode),
+.app,
+.app.rj-mode {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app-header {
+  border-bottom-color: rgba(244, 239, 216, 0.34);
+}
+
+button,
+select,
+input,
+.settings-trigger,
+.list-set-switcher,
+.todo-card,
+.daily-card,
+.weekly-card,
+.persistent-card,
+.app.rj-mode .persistent-card,
+.rj-progress,
+.app.rj-mode .rj-progress,
+.settings-dialog,
+.recurring-panel-content,
+.app.rj-mode .recurring-panel-content,
+.recurring-form,
+.app.rj-mode .recurring-form {
+  color: var(--text);
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+button {
+  --button-hover-bg: var(--control-hover);
+  --button-hover-border: var(--border);
+  --button-active-bg: var(--accent-soft);
+  --button-active-border: var(--border);
+}
+
+button:not(:disabled):not(.settings-backdrop):hover,
+.list-set-switch:hover,
+.settings-trigger:hover,
+.recurring-toggle-btn:hover,
+.recurring-panel-toggle:hover,
+.day-chip span:hover,
+.app.rj-mode .day-chip span:hover {
+  color: var(--text);
+  background: var(--control-hover);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+button:not(:disabled):not(.settings-backdrop):active,
+.day-chip span:active,
+.app.rj-mode .day-chip span:active,
+.day-chip input:checked + span:hover,
+.app.rj-mode .day-chip input:checked + span:hover,
+.day-chip input:checked + span:active,
+.app.rj-mode .day-chip input:checked + span:active {
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.list-set-switch.active,
+.list-set-switch.active:hover,
+.add-task-submit-btn,
+.recurring-toggle-btn.active,
+.recurring-summary-status.active,
+.day-chip input:checked + span,
+.app.rj-mode .day-chip input:checked + span,
+.app.rj-mode .recurring-panel-count {
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.task-item,
+.daily-card .task-item,
+.weekly-card .task-item,
+.persistent-card .task-item,
+.app.rj-mode .persistent-card .task-item,
+.app.rj-mode .persistent-card .task-item.recurring-task,
+.recurring-summary-item,
+.app.rj-mode .recurring-summary-item,
+.day-chip span,
+.app.rj-mode .day-chip span {
+  color: var(--text);
+  background: var(--task-bg);
+  border-color: rgba(244, 239, 216, 0.56);
+  box-shadow: none;
+}
+
+.task-item:hover,
+.daily-card .task-item:hover,
+.weekly-card .task-item:hover,
+.persistent-card .task-item:hover,
+.app.rj-mode .persistent-card .task-item:hover,
+.app.rj-mode .persistent-card .task-item.recurring-task:hover,
+.recurring-summary-item:hover,
+.app.rj-mode .recurring-summary-item:hover {
+  color: var(--text);
+  background: var(--task-hover);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.task-item.done,
+.daily-card .task-item.done,
+.weekly-card .task-item.done,
+.persistent-card .task-item.done,
+.app.rj-mode .persistent-card .task-item.done,
+.app.rj-mode .persistent-card .task-item.recurring-task.done {
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: rgba(244, 239, 216, 0.46);
+  opacity: 0.82;
+}
+
+.progress-track,
+.task-badge,
+.task-days-left,
+.recurring-summary-status,
+.app.rj-mode .recurring-summary-status,
+.delete-confirm,
+.confirm-delete-btn {
+  color: var(--text);
+  background: var(--accent-soft);
+  border-color: rgba(244, 239, 216, 0.56);
+}
+
+.progress-fill,
+.app.rj-mode .progress-fill {
+  background: var(--text);
+}
+
+.reset-label,
+.empty-msg,
+.form-msg,
+.status-pill,
+.app.rj-mode .status-pill,
+.progress-labels,
+.app.rj-mode .progress-labels,
+.recurring-summary-meta,
+.app.rj-mode .recurring-summary-meta,
+.recurring-days-field legend,
+.task-action-btn,
+.app.rj-mode .task-action-btn {
+  color: var(--text);
+}
+
+.list-delete-btn,
+.confirm-delete-btn,
+.confirm-cancel-btn {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.list-delete-btn:hover,
+.confirm-delete-btn:hover,
+.confirm-cancel-btn:hover {
+  color: var(--text);
+  background: var(--control-hover);
+  border-color: var(--border);
+}
+
+.settings-backdrop,
+.app.rj-mode .settings-backdrop {
+  background: rgba(75, 95, 82, 0.72);
+}
+
+.task-list,
+.recurring-panel-list,
+.daily-card .task-list,
+.weekly-card .task-list,
+.persistent-card .task-list,
+.app.rj-mode .persistent-card .task-list {
+  --list-scroll-thumb: var(--scrollbar-thumb);
+  --list-scroll-thumb-hover: var(--scrollbar-thumb-hover);
+  --list-scroll-track: var(--scrollbar-track);
+  scrollbar-color: var(--list-scroll-thumb) var(--list-scroll-track);
+}
+
+/* Open planner linework */
+.app {
+  max-width: 1220px;
+  padding: 1rem 1.15rem;
+}
+
+.app-header {
+  padding: 0.5rem 0 0.75rem;
+}
+
+.settings-trigger,
+.list-set-switcher,
+.list-set-switch,
+button,
+select,
+input,
+.todo-card,
+.task-item,
+.recurring-panel-content,
+.settings-dialog,
+.recurring-summary-item,
+.task-badge,
+.task-days-left,
+.recurring-summary-status,
+.day-chip span,
+.delete-confirm {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.settings-trigger {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-width: 1px;
+}
+
+.list-set-switcher {
+  padding: 0;
+}
+
+.list-set-switch {
+  border-width: 0;
+  border-left: 1px solid rgba(244, 239, 216, 0.5);
+}
+
+.list-set-switch:first-child {
+  border-left: 0;
+}
+
+.list-set-switch.active,
+.list-set-switch.active:hover {
+  background: var(--accent-soft);
+}
+
+.status-pill {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.list-stack {
+  gap: 0;
+  margin-top: 0;
+  border: 1px solid var(--border);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.todo-card,
+.daily-card,
+.weekly-card,
+.persistent-card,
+.app.rj-mode .persistent-card {
+  background: transparent;
+  border: 0;
+  padding: 1.25rem 1.2rem;
+}
+
+.persistent-card {
+  border-right: 1px solid var(--border);
+}
+
+.daily-card {
+  border-bottom: 1px solid var(--border);
+}
+
+.card-header {
+  align-items: baseline;
+  margin-bottom: 1.2rem;
+}
+
+.todo-card h2,
+.recurring-panel-header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.card-meta {
+  gap: 0.5rem;
+}
+
+.reset-label {
+  font-size: 0.75rem;
+}
+
+.add-task-form {
+  align-items: end;
+  gap: 0.55rem;
+  margin: 0.7rem 0 1rem;
+}
+
+.add-task-form input,
+input,
+select {
+  min-height: 2.15rem;
+  padding: 0.25rem 0;
+  background: transparent;
+  border-width: 0 0 1px;
+  border-style: solid;
+  border-color: var(--border);
+}
+
+select {
+  padding-right: 1.2rem;
+}
+
+.add-task-submit-btn,
+.edit-cancel-btn,
+.recurring-panel-toggle,
+.settings-close-btn,
+.task-action-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+}
+
+.add-task-submit-btn,
+.edit-cancel-btn {
+  flex-basis: 2.45rem;
+  width: 2.45rem;
+  min-height: 2.45rem;
+  font-size: 1.15rem;
+}
+
+.task-list {
+  gap: 0;
+  padding-right: 0.35rem;
+}
+
+.task-item,
+.daily-card .task-item,
+.weekly-card .task-item,
+.persistent-card .task-item,
+.app.rj-mode .persistent-card .task-item,
+.app.rj-mode .persistent-card .task-item.recurring-task {
+  min-height: 2.25rem;
+  padding: 0.42rem 0;
+  background: transparent;
+  border-width: 0 0 1px;
+  border-style: solid;
+  border-color: rgba(244, 239, 216, 0.72);
+}
+
+.task-item:not(:last-child) {
+  margin-bottom: 0;
+}
+
+.task-item:hover,
+.daily-card .task-item:hover,
+.weekly-card .task-item:hover,
+.persistent-card .task-item:hover,
+.app.rj-mode .persistent-card .task-item:hover,
+.app.rj-mode .persistent-card .task-item.recurring-task:hover {
+  background: var(--control-hover);
+  border-color: var(--border);
+}
+
+.task-item.done,
+.daily-card .task-item.done,
+.weekly-card .task-item.done,
+.persistent-card .task-item.done,
+.app.rj-mode .persistent-card .task-item.done,
+.app.rj-mode .persistent-card .task-item.recurring-task.done {
+  background: transparent;
+  border-color: rgba(244, 239, 216, 0.46);
+}
+
+.empty-msg {
+  margin-top: 0.6rem;
+}
+
+.list-delete-btn,
+.confirm-cancel-btn,
+.confirm-delete-btn {
+  border-color: var(--border);
+  background: transparent;
+}
+
+.delete-confirm {
+  background: var(--bg);
+}
+
+.settings-dialog,
+.recurring-panel-content,
+.app.rj-mode .recurring-panel-content {
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.recurring-summary-item,
+.app.rj-mode .recurring-summary-item {
+  background: transparent;
+  border-width: 0 0 1px;
+  border-color: rgba(244, 239, 216, 0.72);
+}
+
+.recurring-summary-status,
+.task-badge,
+.task-days-left {
+  background: transparent;
+  border: 1px solid rgba(244, 239, 216, 0.6);
+}
+
+.progress-track {
+  border-radius: 0;
+}
+
+.app {
+  position: relative;
+}
+
+.app-header,
+#lists-view {
+  position: relative;
+  z-index: 1;
+}
+
+.app::before,
+.app::after {
+  position: absolute;
+  display: block;
+  content: "";
+  pointer-events: none;
+}
+
+.app::before {
+  left: -3.3rem;
+  bottom: -3.6rem;
+  width: 7rem;
+  height: 7rem;
+  opacity: 0.28;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.app::after {
+  right: -3.3rem;
+  bottom: -3.6rem;
+  width: 7rem;
+  height: 7rem;
+  opacity: 0.28;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.card-header {
+  margin-bottom: 0.45rem;
+}
+
+.todo-card h2,
+.recurring-panel-header h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.todo-card h2::before,
+.recurring-panel-header h2::before {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 0.78rem;
+  height: 0.78rem;
+  content: "";
+  border: 1px solid currentColor;
+}
+
+.daily-card h2::before {
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 0.18rem var(--bg);
+}
+
+.weekly-card h2::before {
+  height: 0.66rem;
+  background: linear-gradient(currentColor, currentColor) 0 32% / 100% 1px no-repeat,
+    linear-gradient(currentColor, currentColor) 0 66% / 100% 1px no-repeat;
+}
+
+.persistent-card h2::before {
+  border-radius: 70% 0 70% 70%;
+  transform: rotate(-45deg);
+}
+
+.recurring-panel-header h2::before {
+  border-radius: 50%;
+  border-right-color: transparent;
+}
+
+.add-task-form {
+  margin: 0.2rem 0 0.65rem;
+}
+
+.app.rj-mode #lists-view {
+  flex: 0 1 auto;
+  flex-direction: column;
+  gap: 0;
+  align-self: center;
+  width: min(100%, 62rem);
+  height: min(38rem, calc(100vh - 8rem));
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.app.rj-mode .rj-progress {
+  margin: 0;
+  padding: 0.85rem 1.2rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.app.rj-mode .list-stack {
+  flex: 1 1 auto;
+  width: 100%;
+  margin: 0;
+  border: 0;
+}
+
+.app.rj-mode .persistent-card {
+  max-width: none;
+  padding: 1rem 1.2rem;
+}
+
+.app.rj-mode .persistent-card .card-header {
+  margin-bottom: 0.35rem;
+}
+
+.app.rj-mode .persistent-card .add-task-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.45rem auto auto;
+  align-items: end;
+  gap: 0.45rem;
+  margin: 0.15rem 0 0.45rem;
+}
+
+.app.rj-mode .persistent-card .add-task-form input {
+  grid-column: 1;
+}
+
+.app.rj-mode .persistent-card .add-task-submit-btn {
+  grid-column: 2;
+}
+
+.app.rj-mode .persistent-card .edit-cancel-btn {
+  grid-column: 4;
+}
+
+.app.rj-mode .persistent-card .recurring-toggle-btn {
+  grid-column: 3;
+  justify-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.45rem;
+  padding: 0 0.8rem;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.app.rj-mode .persistent-card .recurring-toggle-btn::before {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  content: "";
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  border-right-color: transparent;
+}
+
+.app.rj-mode .persistent-card .recurring-toggle-btn:hover,
+.app.rj-mode .persistent-card .recurring-toggle-btn.active {
+  background: var(--control-hover);
+  border-color: var(--border);
+}
+
+.app.rj-mode .persistent-card .recurring-toggle-btn:active {
+  background: var(--accent-soft);
+}
+
+.app.rj-mode .recurring-tools:not([hidden]) {
+  margin: 0.15rem 0 0.35rem;
+}
+
+.recurring-form,
+.app.rj-mode .recurring-form,
+.recurring-form.show-days-open {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem);
+  justify-content: end;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.recurring-form > select,
+.recurring-form.show-days-open > select,
+.app.rj-mode .recurring-form > select {
+  grid-column: 1;
+  justify-self: end;
+  min-width: 8rem;
+  max-width: 12rem;
+  min-height: 2rem;
+  padding: 0.25rem 1.65rem 0.25rem 0.45rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  appearance: none;
+}
+
+.recurring-days-field,
+.recurring-days-field.show-days-open,
+.app.rj-mode .recurring-days-field.show-days-open {
+  display: block;
+  grid-column: 1;
+  border-radius: 0;
+}
+
+.recurring-days-field.show-days-open,
+.app.rj-mode .recurring-days-field.show-days-open {
+  margin-top: 0.45rem;
+  border: 1px solid var(--border);
+  background: transparent;
+}
+
+.persistent-card .task-badge,
+.persistent-card .task-days-left {
+  display: none;
+}
+
+.progress-track,
+.progress-fill,
+.app.rj-mode .progress-track,
+.app.rj-mode .progress-fill {
+  border-radius: 0;
+}
+
+.rj-progress,
+.app.rj-mode .rj-progress {
+  border-radius: 0;
+}
+
+.app.rj-mode .persistent-card .form-msg {
+  min-height: 0.2rem;
+  margin: 0 0 0.25rem;
+}
+
+.app.rj-mode .persistent-card .empty-msg {
+  margin-top: 0.4rem;
+}
+
+.list-delete-btn,
+.confirm-cancel-btn,
+.confirm-delete-btn,
+.task-action-btn {
+  display: inline-grid;
+  place-items: center;
+  text-align: center;
+}
+
+.card-meta .list-delete-btn {
+  width: 2.15rem;
+  padding: 0;
+  font-size: 0;
+}
+
+.card-meta .list-delete-btn::before,
+.card-meta .list-delete-btn::after {
+  display: block;
+  content: "";
+}
+
+.card-meta .list-delete-btn::before {
+  width: 0.68rem;
+  height: 0.68rem;
+  border: 1px solid currentColor;
+  border-top: 0;
+  transform: translateY(0.08rem);
+}
+
+.card-meta .list-delete-btn::after {
+  position: absolute;
+  top: 0.52rem;
+  left: 50%;
+  width: 0.9rem;
+  height: 1px;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+
+.task-action-btn {
+  width: 1.9rem;
+  min-height: 1.9rem;
+}
+
+.trash-icon {
+  width: 0.72rem;
+  height: 0.72rem;
+  margin: auto;
+  transform: translateY(0.03rem);
+}
+
+.trash-icon::before {
+  top: -0.22rem;
+}
+
+.trash-icon::after {
+  top: -0.38rem;
+}
+
+.edit-icon {
+  display: grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  transform: none;
+}
+
+.edit-icon::before {
+  position: static;
+  width: auto;
+  height: auto;
+  content: "Aa";
+  color: currentColor;
+  background: transparent;
+  border-radius: 0;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.edit-icon::after {
+  display: none;
+}
+
 @media (max-width: 1080px) {
   .app.rj-mode {
     --recurring-panel-width: clamp(15rem, 34vw, 20rem);
@@ -2129,6 +3358,15 @@ input::placeholder {
 
   .app.rj-mode .list-stack {
     justify-content: center;
+  }
+
+  .persistent-card {
+    border-right: 0;
+  }
+
+  .daily-card,
+  .weekly-card {
+    border-bottom: 1px solid var(--border);
   }
 
 }
@@ -2236,4 +3474,154 @@ input::placeholder {
     overflow-wrap: anywhere;
     white-space: normal;
   }
+}
+
+.app.rj-mode .recurring-form,
+.app.rj-mode .recurring-form.show-days-open {
+  grid-template-columns: minmax(8rem, 12rem);
+  justify-content: end;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.app.rj-mode .recurring-form.show-days-open > select,
+.app.rj-mode .recurring-form.show-days-open .recurring-days-field {
+  grid-column: 1;
+}
+
+.recurring-form[hidden],
+.recurring-tools[hidden],
+.app.rj-mode .recurring-form[hidden],
+.app.rj-mode .recurring-tools[hidden] {
+  display: none;
+}
+
+.app.rj-mode .persistent-card {
+  position: relative;
+  overflow: visible;
+}
+
+.app.rj-mode .persistent-card .add-task-form {
+  grid-template-columns: minmax(0, 1fr) 2.45rem auto 2.45rem auto;
+}
+
+.app.rj-mode .persistent-card .edit-cancel-btn {
+  grid-column: 5;
+}
+
+.app.rj-mode .persistent-card .recurring-panel:not([hidden]) {
+  position: relative;
+  grid-column: 4;
+  justify-self: stretch;
+  align-self: end;
+  z-index: 16;
+  display: block;
+  width: 2.45rem;
+  min-width: 0;
+  flex: 0 0 2.45rem;
+}
+
+.app.rj-mode.recurring-open .persistent-card .recurring-panel {
+  width: 2.45rem;
+  flex-basis: 2.45rem;
+}
+
+.app.rj-mode .persistent-card .recurring-panel-toggle {
+  width: 2.45rem;
+  min-height: 2.45rem;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.app.rj-mode .persistent-card .recurring-panel-toggle:hover,
+.app.rj-mode .persistent-card .recurring-panel.open .recurring-panel-toggle {
+  opacity: 1;
+  color: var(--text);
+  background: var(--control-hover);
+  border-color: var(--border);
+  pointer-events: auto;
+}
+
+.app.rj-mode .persistent-card .recurring-panel-toggle:active {
+  background: var(--accent-soft);
+}
+
+.app.rj-mode .persistent-card .recurring-panel-content {
+  top: calc(100% + 0.45rem);
+  right: 0;
+  left: auto;
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: min(24rem, calc(100vh - 12rem));
+}
+
+.app.rj-mode .recurring-tools:not([hidden]) {
+  width: min(100%, 34rem);
+  margin: 0.15rem 0 0.45rem;
+}
+
+.app.rj-mode .recurring-form,
+.app.rj-mode .recurring-form.show-days-open {
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: start;
+  width: 100%;
+}
+
+.app.rj-mode .recurring-form > select,
+.app.rj-mode .recurring-form.show-days-open > select {
+  justify-self: start;
+  width: min(12rem, 100%);
+  max-width: 100%;
+}
+
+.app.rj-mode .recurring-form.show-days-open .recurring-days-field {
+  width: 100%;
+  max-height: 8rem;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.app.rj-mode .recurring-form .day-picker {
+  grid-template-columns: repeat(4, minmax(3rem, 1fr));
+}
+
+.app.rj-mode .recurring-form .day-chip span {
+  color: var(--text);
+  opacity: 1;
+}
+
+.app.rj-mode .recurring-form .recurring-days-field legend {
+  color: var(--text);
+  opacity: 0.78;
+}
+
+.app.rj-mode .persistent-card .task-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9rem;
+  min-width: 1.9rem;
+  min-height: 1.9rem;
+  padding: 0;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid rgba(244, 239, 216, 0.6);
+  font-size: 0;
+}
+
+.app.rj-mode .persistent-card .task-badge::before {
+  content: "\21bb";
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.app.rj-mode .recurring-summary-item.done {
+  cursor: pointer;
+}
+
+.app.rj-mode .recurring-summary-item.done:hover {
+  background: var(--control-hover);
+  border-color: var(--border);
+  opacity: 1;
 }
