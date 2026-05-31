@@ -991,22 +991,50 @@ input:focus-visible {
 }
 
 .delete-option {
-  display: flex;
-  justify-content: flex-end;
+  display: block;
   padding-top: var(--space-sm);
   border-top: 1px solid rgba(184, 196, 184, 0.55);
 }
 
 .settings-delete-control {
-  --delete-button-width: 8.9rem;
+  position: relative;
+  display: grid;
+  gap: 0.55rem;
+  width: 100%;
 }
 
 .settings-delete-btn {
+  --button-hover-bg: var(--danger-bg);
+  --button-hover-border: #ad766e;
+  --button-active-bg: #e5bdb7;
+  --button-active-border: #9a655f;
+  border-color: var(--danger-border);
+  background: transparent;
+  color: var(--danger-text);
   font-weight: 700;
 }
 
+.settings-delete-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.settings-delete-picker select {
+  width: 100%;
+}
+
+.settings-delete-control .delete-confirm {
+  position: static;
+  width: 100%;
+  min-height: auto;
+  padding: 0.45rem 0.55rem;
+  transform: none;
+}
+
 .settings-delete-confirm {
-  width: min(22rem, calc(100vw - 3.5rem));
+  width: 100%;
 }
 
 .empty-msg {
@@ -3125,7 +3153,7 @@ select {
 
 .app.rj-mode .persistent-card .add-task-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.45rem auto auto;
+  grid-template-columns: minmax(0, 1fr) 2.45rem 2.45rem 2.45rem auto;
   align-items: end;
   gap: 0.45rem;
   margin: 0.15rem 0 0.45rem;
@@ -3140,7 +3168,7 @@ select {
 }
 
 .app.rj-mode .persistent-card .edit-cancel-btn {
-  grid-column: 4;
+  grid-column: 5;
 }
 
 .app.rj-mode .persistent-card .recurring-toggle-btn {
@@ -3149,26 +3177,22 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
+  gap: 0;
+  width: 2.45rem;
   min-height: 2.45rem;
-  padding: 0 0.8rem;
+  padding: 0;
   color: var(--text);
   background: transparent;
   border: 1px solid var(--border);
-  font-size: 0.76rem;
+  font-size: 1.28rem;
   font-weight: 600;
-  line-height: 1.1;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .app.rj-mode .persistent-card .recurring-toggle-btn::before {
-  display: inline-block;
-  width: 0.55rem;
-  height: 0.55rem;
-  content: "";
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  border-right-color: transparent;
+  display: none;
+  content: none;
 }
 
 .app.rj-mode .persistent-card .recurring-toggle-btn:hover,
@@ -3503,7 +3527,7 @@ select {
 }
 
 .app.rj-mode .persistent-card .add-task-form {
-  grid-template-columns: minmax(0, 1fr) 2.45rem auto 2.45rem auto;
+  grid-template-columns: minmax(0, 1fr) 2.45rem 2.45rem 2.45rem auto;
 }
 
 .app.rj-mode .persistent-card .edit-cancel-btn {
@@ -3624,4 +3648,642 @@ select {
   background: var(--control-hover);
   border-color: var(--border);
   opacity: 1;
+}
+
+/* Restore the centered recurring chooser motion */
+.app.rj-mode .recurring-tools:not([hidden]) {
+  width: min(100%, 43rem);
+  margin: 0.2rem auto 0.55rem;
+}
+
+.app.rj-mode .recurring-form,
+.app.rj-mode .recurring-form.show-days-open {
+  display: grid;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  transition: grid-template-columns 260ms cubic-bezier(0.22, 0.72, 0.2, 1), gap 220ms ease;
+}
+
+.app.rj-mode .recurring-form {
+  grid-template-columns: minmax(0, 1fr) minmax(11.5rem, 13.5rem) minmax(0, 1fr);
+  justify-content: stretch;
+  gap: 0;
+}
+
+.app.rj-mode .recurring-form.show-days-open {
+  grid-template-columns: 0 minmax(10.5rem, 12.5rem) minmax(18rem, 1fr);
+  gap: 0.6rem;
+}
+
+.app.rj-mode .recurring-form > select,
+.app.rj-mode .recurring-form.show-days-open > select {
+  grid-column: 2;
+  justify-self: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 2.35rem;
+  padding: 0.32rem 2.65rem 0.32rem 0.65rem;
+  color: var(--text);
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--border), var(--border)),
+    linear-gradient(45deg, transparent 50%, var(--text) 50%),
+    linear-gradient(135deg, var(--text) 50%, transparent 50%);
+  background-position:
+    calc(100% - 2.1rem) 50%,
+    calc(100% - 1rem) 52%,
+    calc(100% - 0.72rem) 52%;
+  background-size:
+    1px 68%,
+    0.38rem 0.38rem,
+    0.38rem 0.38rem;
+  background-repeat: no-repeat;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  appearance: none;
+  cursor: pointer;
+  will-change: transform;
+}
+
+.app.rj-mode .recurring-form > select:hover,
+.app.rj-mode .recurring-form > select:focus-visible {
+  background-color: var(--control-hover);
+}
+
+.app.rj-mode .recurring-form .recurring-days-field,
+.app.rj-mode .recurring-form.show-days-open .recurring-days-field {
+  grid-column: 3;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 0;
+  overflow: hidden;
+  transition: max-height 260ms cubic-bezier(0.22, 0.72, 0.2, 1), padding 260ms cubic-bezier(0.22, 0.72, 0.2, 1),
+    opacity 180ms ease, transform 260ms cubic-bezier(0.22, 0.72, 0.2, 1), border-color 180ms ease;
+}
+
+.app.rj-mode .recurring-form .recurring-days-field {
+  max-height: 0;
+  padding: 0 0.58rem;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-0.55rem);
+}
+
+.app.rj-mode .recurring-form.show-days-open .recurring-days-field {
+  max-height: 7.6rem;
+  min-height: 6.25rem;
+  margin-top: 0;
+  padding: 0.34rem 0.58rem 0.5rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.app.rj-mode .recurring-form .recurring-days-field.show-days-disabled {
+  opacity: 0.48;
+  border-style: dashed;
+}
+
+.app.rj-mode .recurring-form .recurring-days-field.show-days-disabled legend {
+  opacity: 0.68;
+}
+
+.app.rj-mode .recurring-form .recurring-days-field.show-days-disabled .day-chip span,
+.day-chip input:disabled + span {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.app.rj-mode .recurring-form .recurring-days-field.show-days-disabled .day-chip span:hover,
+.app.rj-mode .recurring-form .recurring-days-field.show-days-disabled .day-chip span:active {
+  background: transparent;
+  border-color: rgba(244, 239, 216, 0.42);
+  box-shadow: none;
+  transform: none;
+}
+
+.app.rj-mode .recurring-form .day-picker {
+  grid-template-columns: repeat(4, minmax(3.5rem, 1fr));
+}
+
+.app.rj-mode .persistent-card .task-item.recurring-task .task-main {
+  align-items: center;
+  gap: 0.52rem;
+  padding-top: 0;
+}
+
+.app.rj-mode .persistent-card .task-item.recurring-task .task-copy {
+  display: inline;
+  flex: 0 1 auto;
+}
+
+.app.rj-mode .persistent-card .task-item.recurring-task .task-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(0.01rem);
+}
+
+.app.rj-mode .persistent-card .task-badge::before {
+  content: none;
+}
+
+/* Keep the decorative arcs attached to the list frames */
+.app {
+  height: 100dvh;
+  min-height: 100dvh;
+}
+
+#lists-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-bottom: clamp(3.75rem, 8dvh, 5rem);
+  overflow: visible;
+}
+
+.list-stack,
+.app.rj-mode #lists-view {
+  position: relative;
+}
+
+.app::before,
+.app::after {
+  display: none;
+}
+
+.list-stack::before,
+.list-stack::after,
+.app.rj-mode #lists-view::before,
+.app.rj-mode #lists-view::after {
+  position: absolute;
+  z-index: 0;
+  bottom: -3.6rem;
+  width: 7rem;
+  height: 7rem;
+  content: "";
+  pointer-events: none;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.28;
+}
+
+.list-stack::before,
+.app.rj-mode #lists-view::before {
+  left: -3.3rem;
+}
+
+.list-stack::after,
+.app.rj-mode #lists-view::after {
+  right: -3.3rem;
+}
+
+.app.rj-mode .list-stack::before,
+.app.rj-mode .list-stack::after {
+  display: none;
+}
+
+.todo-card,
+.rj-progress,
+.app.rj-mode .list-stack {
+  position: relative;
+  z-index: 1;
+}
+
+.app.rj-mode #lists-view {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: min(38rem, calc(100dvh - 7rem));
+  max-height: none;
+  overflow: visible;
+}
+
+.app.rj-mode .list-stack {
+  min-height: 0;
+}
+
+/* Single SchedMS entry line */
+.schedms-quick-add {
+  position: relative;
+  z-index: 2;
+  width: min(54rem, 100%);
+  margin: 0 0 0.85rem;
+  color: var(--text);
+}
+
+.schedms-quick-add[hidden] {
+  display: none;
+}
+
+.app:not(.rj-mode) #lists-view {
+  flex-direction: column;
+}
+
+.app:not(.rj-mode) .list-stack {
+  flex: 1 1 auto;
+}
+
+.schedms-add-form {
+  display: grid;
+  grid-template-columns: minmax(15rem, 1fr) minmax(7rem, 9rem) 2.45rem;
+  gap: 0.55rem;
+  align-items: end;
+}
+
+.schedms-add-form input,
+.schedms-add-form select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.35rem;
+  padding: 0.28rem 0.15rem;
+  color: var(--text);
+  background-color: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  font: inherit;
+}
+
+.schedms-add-form select {
+  padding-right: 2.2rem;
+  background-image:
+    linear-gradient(var(--border), var(--border)),
+    linear-gradient(45deg, transparent 50%, var(--text) 50%),
+    linear-gradient(135deg, var(--text) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.72rem) 50%,
+    calc(100% - 0.84rem) 54%,
+    calc(100% - 0.58rem) 54%;
+  background-size:
+    1px 64%,
+    0.34rem 0.34rem,
+    0.34rem 0.34rem;
+  background-repeat: no-repeat;
+  appearance: none;
+  cursor: pointer;
+}
+
+.schedms-add-form input:hover,
+.schedms-add-form input:focus,
+.schedms-add-form select:hover,
+.schedms-add-form select:focus {
+  background-color: var(--control-hover);
+}
+
+.schedms-add-form .add-task-submit-btn {
+  width: 2.45rem;
+  min-height: 2.45rem;
+  margin: 0;
+}
+
+.schedms-quick-add .form-msg {
+  min-height: 0.9rem;
+  margin: 0.25rem 0 0;
+}
+
+/* Keep row controls inside the task line */
+.task-item,
+.daily-card .task-item,
+.weekly-card .task-item,
+.persistent-card .task-item,
+.app.rj-mode .persistent-card .task-item,
+.app.rj-mode .persistent-card .task-item.recurring-task {
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 2.55rem;
+  padding: 0.26rem 0.34rem 0.26rem 0;
+  overflow: hidden;
+}
+
+.task-main,
+.app.rj-mode .persistent-card .task-item.recurring-task .task-main {
+  align-items: center;
+  min-height: 2rem;
+  padding-top: 0;
+}
+
+.task-main input[type="checkbox"] {
+  align-self: center;
+}
+
+.task-actions {
+  align-self: center;
+  align-items: center;
+  min-height: 2rem;
+  margin-left: auto;
+  padding-left: 0.35rem;
+}
+
+.task-action-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  min-height: 2rem;
+  border: 1px solid var(--border);
+}
+
+.edit-icon {
+  position: relative;
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  margin: auto;
+  transform: rotate(-35deg);
+}
+
+.edit-icon::before {
+  position: absolute;
+  left: 0.14rem;
+  top: 0.4rem;
+  width: 0.7rem;
+  height: 0.18rem;
+  content: "";
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.edit-icon::after {
+  position: absolute;
+  display: block;
+  left: 0.79rem;
+  top: 0.34rem;
+  width: 0;
+  height: 0;
+  content: "";
+  background: transparent;
+  border-top: 0.15rem solid transparent;
+  border-bottom: 0.15rem solid transparent;
+  border-left: 0.24rem solid currentColor;
+}
+
+/* Arc-only corner ornaments */
+.list-stack::before,
+.app.rj-mode #lists-view::before {
+  border: 0;
+  border-top: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+}
+
+.list-stack::after,
+.app.rj-mode #lists-view::after {
+  border: 0;
+  border-top: 1px solid currentColor;
+  border-left: 1px solid currentColor;
+}
+
+@media (max-width: 760px) {
+  .schedms-add-form {
+    grid-template-columns: minmax(0, 1fr) 2.45rem;
+  }
+
+  .schedms-add-form input[type="text"] {
+    grid-column: 1 / -1;
+  }
+
+  .schedms-add-form select {
+    min-width: 0;
+  }
+
+  .schedms-add-form .add-task-submit-btn {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+/* Unified dropdown surface and quick open/close motion */
+select,
+.schedms-add-form select,
+.settings-delete-picker select,
+.app.rj-mode .recurring-form > select,
+.app.rj-mode .recurring-form.show-days-open > select {
+  padding: 0.32rem 2.65rem 0.32rem 0.65rem;
+  color: var(--text);
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--border), var(--border)),
+    linear-gradient(45deg, transparent 50%, var(--text) 50%),
+    linear-gradient(135deg, var(--text) 50%, transparent 50%);
+  background-position:
+    calc(100% - 2.1rem) 50%,
+    calc(100% - 1rem) 52%,
+    calc(100% - 0.72rem) 52%;
+  background-size:
+    1px 68%,
+    0.38rem 0.38rem,
+    0.38rem 0.38rem;
+  background-repeat: no-repeat;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  appearance: none;
+  transform-origin: top center;
+  transition: background-color 90ms ease, border-color 90ms ease, box-shadow 90ms ease;
+}
+
+.custom-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.custom-select .native-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.custom-select-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.35rem;
+  padding: 0.32rem 2.65rem 0.32rem 0.65rem;
+  color: var(--text);
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  text-align: left;
+}
+
+.custom-select-button::before,
+.custom-select-button::after {
+  position: absolute;
+  top: 50%;
+  display: block;
+  content: "";
+  pointer-events: none;
+}
+
+.custom-select-button::before {
+  right: 2.1rem;
+  width: 1px;
+  height: 68%;
+  background: var(--border);
+  transform: translateY(-50%);
+}
+
+.custom-select-button::after {
+  right: 0.9rem;
+  width: 0.46rem;
+  height: 0.46rem;
+  border-right: 1px solid var(--text);
+  border-bottom: 1px solid var(--text);
+  transform: translateY(-65%) rotate(45deg);
+}
+
+.custom-select-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+select:hover,
+select:focus,
+.custom-select-button:hover,
+.custom-select-button:focus-visible {
+  background-color: var(--control-hover);
+}
+
+button.custom-select-button:not(:disabled):active {
+  background-color: var(--control-hover);
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
+}
+
+select option,
+.custom-select-menu {
+  color: var(--text);
+  background: var(--bg);
+}
+
+.settings-delete-picker .custom-select {
+  width: 100%;
+}
+
+.schedms-add-form .custom-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.app.rj-mode .recurring-form > .custom-select,
+.app.rj-mode .recurring-form.show-days-open > .custom-select {
+  grid-column: 2;
+  justify-self: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 0.18rem);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: grid;
+  gap: 0;
+  padding: 0.2rem 0;
+  overflow: visible;
+  border: 1px solid var(--border);
+  transform-origin: top center;
+  box-shadow: 0 10px 24px rgba(5, 12, 8, 0.18);
+}
+
+.settings-dialog.select-menu-open,
+.settings-dialog:has(.custom-select.open),
+.settings-dialog:has(.custom-select.closing) {
+  overflow: visible;
+}
+
+.custom-select-menu[hidden] {
+  display: none;
+}
+
+.custom-select.open .custom-select-menu {
+  animation: dropdownExpandDown 120ms ease-out both;
+}
+
+.custom-select.closing .custom-select-menu {
+  animation: dropdownCollapseUp 110ms ease-in both;
+}
+
+.custom-select-option {
+  display: block;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.38rem 0.65rem;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+}
+
+.custom-select-option[aria-selected="true"],
+.custom-select-option:hover,
+.custom-select-option:focus-visible {
+  background: var(--control-hover);
+}
+
+.custom-select-option:not(:disabled):active {
+  transform: none;
+}
+
+@keyframes dropdownExpandDown {
+  from {
+    opacity: 0.96;
+    transform: scaleY(0.82);
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes dropdownCollapseUp {
+  from {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  to {
+    opacity: 0.96;
+    transform: scaleY(0.82);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .custom-select.open .custom-select-menu,
+  .custom-select.closing .custom-select-menu {
+    animation: none;
+  }
 }

@@ -55,22 +55,26 @@
             <div id="rj-progress-fill" class="progress-fill"></div>
           </div>
         </section>
+        <section id="schedms-quick-add" class="schedms-quick-add" aria-label="Add SchedMS task">
+          <form id="schedms-add-form" class="schedms-add-form">
+            <label class="sr-only" for="schedms-input">Add SchedMS task</label>
+            <input id="schedms-input" type="text" maxlength="100" placeholder="Add task" required />
+            <label class="sr-only" for="schedms-target-list">Choose list</label>
+            <select id="schedms-target-list" aria-label="Choose list">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="persistent">To-Do</option>
+            </select>
+            <button class="add-task-submit-btn" type="submit" aria-label="Add SchedMS task" title="Add task">+</button>
+          </form>
+          <p id="schedms-add-error" class="form-msg" role="alert"></p>
+        </section>
         <div class="list-stack">
           <section class="todo-card daily-card" data-list="daily">
             <div class="card-header">
               <h2>Daily</h2>
               <div class="card-meta">
                 <span id="daily-reset-label" class="reset-label"></span>
-                <div class="delete-control" data-delete-control="daily">
-                  <button class="list-delete-btn" type="button" data-delete-list="daily">Delete</button>
-                  <div id="daily-delete-confirm" class="delete-confirm" data-confirm-list="daily" role="alertdialog" hidden>
-                    <span>Delete all?</span>
-                    <div class="confirm-actions">
-                      <button class="confirm-cancel-btn" type="button" data-cancel-delete="daily">Cancel</button>
-                      <button class="confirm-delete-btn" type="button" data-confirm-delete="daily">Delete</button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
             <form class="add-task-form" data-list="daily">
@@ -91,16 +95,6 @@
               <h2>Weekly</h2>
               <div class="card-meta">
                 <span id="weekly-reset-label" class="reset-label"></span>
-                <div class="delete-control" data-delete-control="weekly">
-                  <button class="list-delete-btn" type="button" data-delete-list="weekly">Delete</button>
-                  <div id="weekly-delete-confirm" class="delete-confirm" data-confirm-list="weekly" role="alertdialog" hidden>
-                    <span>Delete all?</span>
-                    <div class="confirm-actions">
-                      <button class="confirm-cancel-btn" type="button" data-cancel-delete="weekly">Cancel</button>
-                      <button class="confirm-delete-btn" type="button" data-confirm-delete="weekly">Delete</button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
             <form class="add-task-form" data-list="weekly">
@@ -140,8 +134,11 @@
                 type="button"
                 aria-expanded="false"
                 aria-controls="recurring-form"
+                aria-label="Task options"
+                title="Task options"
               >
-                Make recurring
+                <span aria-hidden="true">&#8943;</span>
+                <span class="sr-only">Task options</span>
               </button>
               <aside id="recurring-panel" class="recurring-panel" aria-label="Recurring tasks" hidden>
                 <button
@@ -167,9 +164,10 @@
             </form>
             <div id="recurring-tools" class="recurring-tools" hidden>
               <div id="recurring-form" class="recurring-form" hidden>
-                <label class="sr-only" for="recurring-interval">Repeat interval</label>
-                <select id="recurring-interval" aria-label="Repeat interval">
-                  <option value="1">Everyday</option>
+                <label class="sr-only" for="recurring-interval">Task option</label>
+                <select id="recurring-interval" aria-label="Task option">
+                  <option value="one-time">One-time</option>
+                  <option value="1">Daily</option>
                   <option value="7">Weekly</option>
                 </select>
                 <fieldset class="recurring-days-field">
@@ -206,21 +204,25 @@
             </label>
           </div>
           <div class="option-row delete-option">
-            <div class="delete-control settings-delete-control" data-delete-control="persistent">
-              <button class="list-delete-btn settings-delete-btn" type="button" data-delete-list="persistent">
-                Delete All Tasks
-              </button>
+            <label for="delete-list-select">Delete list</label>
+            <div class="settings-delete-control" data-delete-control="settings">
+              <div class="settings-delete-picker">
+                <select id="delete-list-select" aria-label="Choose list to delete"></select>
+                <button id="settings-delete-btn" class="settings-delete-btn" type="button" disabled>Delete</button>
+              </div>
               <div
-                id="persistent-delete-confirm"
+                id="settings-delete-confirm"
                 class="delete-confirm settings-delete-confirm"
-                data-confirm-list="persistent"
+                data-confirm-list="settings"
                 role="alertdialog"
                 hidden
               >
-                <span>Delete all?</span>
+                <span id="settings-delete-confirm-copy">Delete selected list?</span>
                 <div class="confirm-actions">
-                  <button class="confirm-cancel-btn" type="button" data-cancel-delete="persistent">Cancel</button>
-                  <button class="confirm-delete-btn" type="button" data-confirm-delete="persistent">Delete</button>
+                  <button class="confirm-cancel-btn" type="button" data-cancel-delete="settings">Cancel</button>
+                  <button id="settings-confirm-delete-btn" class="confirm-delete-btn" type="button" data-confirm-delete="">
+                    Delete
+                  </button>
                 </div>
               </div>
             </div>
