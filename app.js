@@ -89,6 +89,7 @@ function createDefaultListSetState() {
     periodIds: {
       daily: "",
       weekly: "",
+      persistent: "",
     },
     tasks: {
       daily: [],
@@ -1772,16 +1773,16 @@ function renderList(listType) {
 }
 
 function renderRecurringPanel() {
-  const recurringTasks =
-    state.activeListSet === "rj" ? getActiveListSet().tasks.persistent.filter((task) => isRecurringTask(task)) : [];
+  const scheduledTasks =
+    state.activeListSet === "rj" ? getScheduledPanelTasks(getActiveListSet().tasks.persistent) : [];
 
-  els.recurringPanelCount.textContent = String(recurringTasks.length);
+  els.recurringPanelCount.textContent = String(scheduledTasks.length);
   els.recurringPanelList.innerHTML = "";
 
-  recurringTasks.forEach((task) => {
+  scheduledTasks.forEach((task) => {
     const li = document.createElement("li");
     li.className = `recurring-summary-item ${task.done ? "done" : ""} ${
-      doesRecurringTaskShowToday(task) ? "is-active" : ""
+      doesScheduledTaskShowToday(task) ? "is-active" : ""
     }`;
 
     const copy = document.createElement("div");
@@ -1793,22 +1794,22 @@ function renderRecurringPanel() {
 
     const meta = document.createElement("span");
     meta.className = "recurring-summary-meta";
-    meta.textContent = formatRecurringPanelMeta(task);
+    meta.textContent = formatScheduledPanelMeta(task);
 
-    const status = shouldShowRecurringPanelStatusBadge(task) ? document.createElement("span") : null;
+    const status = shouldShowScheduledPanelStatusBadge(task) ? document.createElement("span") : null;
 
     if (status) {
       status.className = `recurring-summary-status ${task.done ? "done" : ""} ${
-        doesRecurringTaskShowToday(task) ? "active" : ""
+        doesScheduledTaskShowToday(task) ? "active" : ""
       }`;
-      status.textContent = formatRecurringPanelStatus(task);
+      status.textContent = formatScheduledPanelStatus(task);
     }
 
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "task-action-btn delete-btn recurring-summary-delete";
-    deleteBtn.setAttribute("aria-label", `Remove recurring task: ${task.text}`);
-    deleteBtn.title = "Remove recurring task";
+    deleteBtn.setAttribute("aria-label", `Remove scheduled task: ${task.text}`);
+    deleteBtn.title = "Remove scheduled task";
 
     const trashIcon = document.createElement("span");
     trashIcon.className = "trash-icon";
@@ -1816,7 +1817,7 @@ function renderRecurringPanel() {
     deleteBtn.appendChild(trashIcon);
     let didDelete = false;
 
-    const deleteRecurringTask = () => {
+    const deleteScheduledTask = () => {
       if (didDelete) {
         return;
       }
@@ -1829,7 +1830,7 @@ function renderRecurringPanel() {
     };
 
     const restoreRecurringTask = () => {
-      if (!task.done || didDelete) {
+      if (!isRecurringTask(task) || !task.done || didDelete) {
         return;
       }
 
@@ -1840,7 +1841,7 @@ function renderRecurringPanel() {
       animateListReflow("persistent", beforePositions);
     };
 
-    if (task.done) {
+    if (isRecurringTask(task) && task.done) {
       li.tabIndex = 0;
       li.setAttribute("role", "button");
       li.setAttribute("aria-label", `Show recurring task on To-Do list: ${task.text}`);
@@ -1854,12 +1855,12 @@ function renderRecurringPanel() {
 
       event.preventDefault();
       event.stopPropagation();
-      deleteRecurringTask();
+      deleteScheduledTask();
     });
 
     deleteBtn.addEventListener("click", (event) => {
       event.stopPropagation();
-      deleteRecurringTask();
+      deleteScheduledTask();
     });
 
     li.addEventListener("click", (event) => {
@@ -1890,7 +1891,37 @@ function renderRecurringPanel() {
     els.recurringPanelList.appendChild(li);
   });
 
-  els.recurringPanelEmpty.style.display = recurringTasks.length === 0 ? "block" : "none";
+  els.recurringPanelEmpty.style.display = scheduledTasks.length === 0 ? "block" : "none";
+}
+
+function getScheduledPanelTasks(tasks) {
+  return tasks.filter((task) => isScheduledPanelTask(task)).sort(compareScheduledPanelTasks);
+}
+
+function isScheduledPanelTask(task) {
+  if (isRecurringTask(task)) {
+    return true;
+  }
+
+  const showOnDate = normalizeDateId(task?.showOnDate);
+  return Boolean(showOnDate) && !task.done && showOnDate >= dailyPeriodId(new Date());
+}
+
+function compareScheduledPanelTasks(taskA, taskB) {
+  const dateA = getTaskAppearanceDateId(taskA);
+  const dateB = getTaskAppearanceDateId(taskB);
+
+  if (dateA !== dateB) {
+    return dateA.localeCompare(dateB);
+  }
+
+  const typeOrder = getScheduledTaskTypeOrder(taskA) - getScheduledTaskTypeOrder(taskB);
+
+  if (typeOrder !== 0) {
+    return typeOrder;
+  }
+
+  return taskA.text.localeCompare(taskB.text);
 }
 
 function shouldShowListForm(listType) {
@@ -2789,6 +2820,10 @@ function runResetsIfNeeded() {
   const now = new Date();
   const nextDailyPeriodId = schedmsDailyPeriodId(now);
   const nextWeeklyPeriodId = schedmsWeeklyPeriodId(now);
+  const nextPersistentPeriodIds = {
+    schedms: nextDailyPeriodId,
+    rj: dailyPeriodId(now),
+  };
   const listSet = state.listSets.schedms;
   let didReset = false;
 
@@ -2804,11 +2839,32 @@ function runResetsIfNeeded() {
     didReset = true;
   }
 
+  LIST_SET_IDS.forEach((listSetId) => {
+    const targetListSet = state.listSets[listSetId];
+    const nextPersistentPeriodId = nextPersistentPeriodIds[listSetId];
+
+    if (!targetListSet.periodIds.persistent) {
+      targetListSet.periodIds.persistent = nextPersistentPeriodId;
+      didReset = true;
+      return;
+    }
+
+    if (targetListSet.periodIds.persistent !== nextPersistentPeriodId) {
+      targetListSet.periodIds.persistent = nextPersistentPeriodId;
+      targetListSet.tasks.persistent = removeCompletedToDoAssignments(targetListSet.tasks.persistent);
+      didReset = true;
+    }
+  });
+
   if (didReset) {
     saveState();
   }
 
   return didReset;
+}
+
+function removeCompletedToDoAssignments(tasks) {
+  return tasks.filter((task) => isRecurringTask(task) || !task.done);
 }
 
 function isWholeHourOffset(offset) {
@@ -2997,65 +3053,124 @@ function formatRecurringShowDays(task) {
   return showDays.map((dayIndex) => DAY_SHORT_NAMES[dayIndex]).join(", ");
 }
 
-function formatRecurringPanelMeta(task) {
-  const showDays = getEffectiveRecurringShowDays(task);
-  const metaParts = [];
+function formatScheduledPanelMeta(task) {
+  const metaParts = [formatScheduledTaskTypeLabel(task), formatTaskAppearanceLabel(task)];
 
-  if (showDays.length > 0) {
+  if (isRecurringTask(task) && getEffectiveRecurringShowDays(task).length > 0) {
     metaParts.push(formatRecurringShowDays(task));
-  }
-
-  metaParts.push(formatRecurringIntervalLabel(task.intervalDays));
-
-  if (!shouldShowRecurringPanelStatusBadge(task)) {
-    metaParts.push(formatNextRecurringShowLabel(task));
   }
 
   return metaParts.join(" | ");
 }
 
-function shouldShowRecurringPanelStatusBadge(task) {
-  return task.done || doesRecurringTaskShowToday(task);
+function formatScheduledTaskTypeLabel(task) {
+  if (!isRecurringTask(task)) {
+    return "One-time";
+  }
+
+  return formatRecurringIntervalLabel(task.intervalDays);
 }
 
-function formatRecurringPanelStatus(task) {
+function shouldShowScheduledPanelStatusBadge(task) {
+  return task.done || doesScheduledTaskShowToday(task);
+}
+
+function formatScheduledPanelStatus(task) {
   if (task.done) {
     return "Done";
   }
 
-  if (doesRecurringTaskShowToday(task)) {
+  if (doesScheduledTaskShowToday(task)) {
     return "On list";
   }
 
-  return formatNextRecurringShowLabel(task);
+  return formatTaskAppearanceLabel(task);
 }
 
-function formatNextRecurringShowLabel(task) {
+function doesScheduledTaskShowToday(task) {
+  return getTaskAppearanceDateId(task) === dailyPeriodId(new Date()) && !task.done;
+}
+
+function formatTaskAppearanceLabel(task) {
+  return `Appears ${formatAppearanceDateLabel(getTaskAppearanceDateId(task))}`;
+}
+
+function formatAppearanceDateLabel(dateId) {
+  const todayId = dailyPeriodId(new Date());
+  const tomorrowId = addCalendarDaysToDateId(todayId, 1);
+
+  if (dateId === todayId) {
+    return "today";
+  }
+
+  if (dateId === tomorrowId) {
+    return "tomorrow";
+  }
+
+  const utcTime = dateIdToUtcTime(dateId);
+
+  if (utcTime === null) {
+    return "soon";
+  }
+
+  return formatPlannerDate(new Date(utcTime), {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function getTaskAppearanceDateId(task) {
+  if (!isRecurringTask(task)) {
+    return normalizeDateId(task?.showOnDate) || dailyPeriodId(new Date());
+  }
+
+  return getNextRecurringAppearanceDateId(task);
+}
+
+function getNextRecurringAppearanceDateId(task) {
+  const todayId = dailyPeriodId(new Date());
+  const dueDate = normalizeDateId(task.nextDueDate);
+  const fallbackStartDate = normalizeDateId(task.recurringStartDate) || todayId;
+
+  if (task.done) {
+    return dueDate || addDaysToDateId(fallbackStartDate, task.intervalDays);
+  }
+
+  if (doesRecurringTaskShowToday(task)) {
+    return todayId;
+  }
+
   const showDays = getEffectiveRecurringShowDays(task);
 
   if (showDays.length === 0) {
-    return "Any day";
+    return todayId;
   }
 
-  const todayIndex = currentPlannerDayIndex();
-  const nextShow = showDays.reduce(
-    (best, dayIndex) => {
-      const offsetDays = (dayIndex - todayIndex + DAY_NAMES.length) % DAY_NAMES.length;
+  return getNextDateIdForShowDays(showDays, todayId);
+}
 
-      return offsetDays < best.offsetDays ? { dayIndex, offsetDays } : best;
-    },
-    { dayIndex: showDays[0], offsetDays: DAY_NAMES.length }
-  );
+function getNextDateIdForShowDays(showDays, startDateId) {
+  const normalizedStartDate = normalizeDateId(startDateId) || dailyPeriodId(new Date());
 
-  if (nextShow.offsetDays === 0) {
-    return "Today";
+  for (let offsetDays = 0; offsetDays <= DAY_NAMES.length; offsetDays += 1) {
+    const dateId = addCalendarDaysToDateId(normalizedStartDate, offsetDays);
+    const utcTime = dateIdToUtcTime(dateId);
+
+    if (utcTime !== null && showDays.includes(new Date(utcTime).getUTCDay())) {
+      return dateId;
+    }
   }
 
-  if (nextShow.offsetDays === 1) {
-    return "Tomorrow";
+  return normalizedStartDate;
+}
+
+function getScheduledTaskTypeOrder(task) {
+  if (!isRecurringTask(task)) {
+    return 2;
   }
 
-  return `Next ${DAY_SHORT_NAMES[nextShow.dayIndex]}`;
+  return normalizeRecurringIntervalDays(task.intervalDays) === MIN_RECURRING_INTERVAL_DAYS ? 0 : 1;
 }
 
 function dailyPeriodId(now) {
@@ -3157,6 +3272,7 @@ function normalizeListSetState(listSet) {
     periodIds: {
       daily: String(listSet?.periodIds?.daily || defaults.periodIds.daily),
       weekly: String(listSet?.periodIds?.weekly || defaults.periodIds.weekly),
+      persistent: String(listSet?.periodIds?.persistent || defaults.periodIds.persistent),
     },
     tasks: {
       daily: normalizeTaskSet(listSet?.tasks?.daily),
