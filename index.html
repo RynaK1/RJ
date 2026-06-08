@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SchedMS - Daily Planner</title>
+    <title>R&amp;J - Daily Planner</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -23,8 +23,8 @@
             <span aria-hidden="true">&#9881;</span>
           </button>
           <div class="list-set-switcher" role="group" aria-label="List set">
-            <button class="list-set-switch" type="button" data-list-set="rj">R&amp;J</button>
-            <button class="list-set-switch active" type="button" data-list-set="schedms">SchedMS</button>
+            <button class="list-set-switch" type="button" data-list-set="rj">IRL</button>
+            <button class="list-set-switch active" type="button" data-list-set="schedms">MS</button>
           </div>
         </div>
         <div class="pixel-party" aria-hidden="true">
@@ -45,7 +45,7 @@
       </header>
 
       <section id="lists-view">
-        <section class="rj-progress" aria-label="R&J completion progress" hidden>
+        <section class="rj-progress" aria-label="IRL completion progress" hidden>
           <div class="progress-labels">
             <span>0%</span>
             <strong id="rj-progress-label">0%</strong>
@@ -55,9 +55,9 @@
             <div id="rj-progress-fill" class="progress-fill"></div>
           </div>
         </section>
-        <section id="schedms-quick-add" class="schedms-quick-add" aria-label="Add SchedMS task">
+        <section id="schedms-quick-add" class="schedms-quick-add" aria-label="Add MS task">
           <form id="schedms-add-form" class="schedms-add-form">
-            <label class="sr-only" for="schedms-input">Add SchedMS task</label>
+            <label class="sr-only" for="schedms-input">Add MS task</label>
             <input id="schedms-input" type="text" maxlength="100" placeholder="Add task" required />
             <label class="sr-only" for="schedms-target-list">Choose list</label>
             <select id="schedms-target-list" aria-label="Choose list">
@@ -65,7 +65,7 @@
               <option value="weekly">Weekly</option>
               <option value="persistent">To-Do</option>
             </select>
-            <button class="add-task-submit-btn" type="submit" aria-label="Add SchedMS task" title="Add task">+</button>
+            <button class="add-task-submit-btn" type="submit" aria-label="Add MS task" title="Add task">+</button>
           </form>
           <p id="schedms-add-error" class="form-msg" role="alert"></p>
         </section>

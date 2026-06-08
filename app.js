@@ -11,8 +11,8 @@ const RJ_TASK_OPTION_ONE_TIME = "one-time";
 const RJ_TASK_OPTION_DAILY = "daily";
 const RJ_TASK_OPTION_WEEKLY = "weekly";
 const LIST_SET_LABELS = {
-  schedms: "SchedMS",
-  rj: "R&J",
+  schedms: "MS",
+  rj: "IRL",
 };
 const LIST_LABELS = {
   daily: "Daily",
@@ -25,11 +25,12 @@ const DEFAULT_TIMEZONE_OFFSET = "-08:00";
 const SCHEDMS_WEEKLY_RESET_DAY_UTC = 4;
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAY_SHORT_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const RECURRING_PANEL_MOTION_MS = 130;
+const RECURRING_PANEL_MOTION_MS = 180;
 const RECURRING_PANEL_CLOSE_DELAY_MS = 180;
-const RECURRING_FORM_MOTION_MS = 240;
-const CUSTOM_SELECT_CLOSE_MS = 110;
+const RECURRING_FORM_MOTION_MS = 260;
+const CUSTOM_SELECT_CLOSE_MS = 120;
 const EDIT_TASK_MOTION_MS = 420;
+const EDIT_CANCEL_MOTION_MS = 220;
 const ADD_TASK_PLACEHOLDERS = {
   daily: "Add something for today",
   weekly: "Add weekly focus",
@@ -128,9 +129,11 @@ let recurringPanelOpen = false;
 let recurringPanelCloseTimer = null;
 let recurringPanelHoverCloseTimer = null;
 let recurringCreateMode = false;
+let recurringFormCloseTimer = null;
 let completionAudioContext = null;
 let openCustomSelect = null;
 const pendingAppendAnimations = new Set();
+const editCancelHideTimers = new Map();
 
 const els = {
   app: document.querySelector(".app"),
@@ -858,7 +861,18 @@ function toggleRecurringForm() {
 
 function setRecurringCreateMode(isActive) {
   recurringCreateMode = Boolean(isActive);
-  els.recurringForm.hidden = !recurringCreateMode;
+  window.clearTimeout(recurringFormCloseTimer);
+  recurringFormCloseTimer = null;
+
+  if (recurringCreateMode) {
+    const wasHidden = els.recurringForm.hidden;
+    els.recurringForm.hidden = false;
+    if (wasHidden) {
+      els.recurringForm.classList.remove("show-days-open");
+      els.recurringForm.getBoundingClientRect();
+    }
+  }
+
   els.recurringToggleBtn.classList.toggle("active", recurringCreateMode);
   els.recurringToggleBtn.setAttribute("aria-expanded", String(recurringCreateMode));
   els.recurringToggleBtn.title = recurringCreateMode ? "Hide task options" : "Task options";
@@ -867,6 +881,21 @@ function setRecurringCreateMode(isActive) {
   updateRecurringShowDaysVisibility();
   updateTaskInputPlaceholder("persistent");
   setRecurringError("");
+
+  if (!recurringCreateMode) {
+    const closeDelay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : RECURRING_FORM_MOTION_MS;
+    if (closeDelay === 0) {
+      els.recurringForm.hidden = true;
+      return;
+    }
+
+    recurringFormCloseTimer = window.setTimeout(() => {
+      if (!recurringCreateMode) {
+        els.recurringForm.hidden = true;
+      }
+      recurringFormCloseTimer = null;
+    }, closeDelay);
+  }
 }
 
 function closeRecurringForm() {
@@ -922,6 +951,7 @@ function setTaskFormEditingState(listType, isEditing) {
   const cancelButton = getTaskEditCancelButton(listType);
   const taskLabel = getListTypeTaskLabel(listType);
 
+  clearEditCancelHideTimer(listType);
   cancelButton.hidden = false;
   cancelButton.disabled = !isEditing;
   cancelButton.setAttribute("aria-hidden", String(!isEditing));
@@ -931,6 +961,38 @@ function setTaskFormEditingState(listType, isEditing) {
   submitButton.setAttribute("aria-label", isEditing ? `Save ${taskLabel}` : `Add ${taskLabel}`);
   submitButton.title = isEditing ? "Save task" : "Add task";
   updateTaskInputPlaceholder(listType);
+
+  if (!isEditing) {
+    hideEditCancelButtonAfterCollapse(listType, cancelButton);
+  }
+}
+
+function clearEditCancelHideTimer(listType) {
+  const timerId = editCancelHideTimers.get(listType);
+
+  if (timerId !== undefined) {
+    window.clearTimeout(timerId);
+    editCancelHideTimers.delete(listType);
+  }
+}
+
+function hideEditCancelButtonAfterCollapse(listType, cancelButton) {
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (reduceMotion) {
+    cancelButton.hidden = true;
+    return;
+  }
+
+  const timerId = window.setTimeout(() => {
+    editCancelHideTimers.delete(listType);
+
+    if (!isEditingTask(listType)) {
+      cancelButton.hidden = true;
+    }
+  }, EDIT_CANCEL_MOTION_MS + 30);
+
+  editCancelHideTimers.set(listType, timerId);
 }
 
 function prepareTaskEditMode(listType, task) {
@@ -1211,14 +1273,6 @@ function updateRecurringShowDaysVisibility() {
   const isVisible = recurringCreateMode;
   const isDisabled = isVisible && isDailyTaskOptionSelection();
   const field = els.recurringShowDays.closest(".recurring-days-field");
-  const wasVisible = els.recurringForm.classList.contains("show-days-open");
-  const shouldAnimate = shouldAnimateRecurringFormToggle(field, wasVisible, isVisible);
-  const beforeSelectRect = shouldAnimate ? els.recurringInterval.getBoundingClientRect() : null;
-  const beforeFieldRect = shouldAnimate ? field.getBoundingClientRect() : null;
-
-  if (shouldAnimate) {
-    els.recurringForm.classList.add("recurring-form-measuring");
-  }
 
   els.recurringForm.classList.toggle("show-days-open", isVisible);
   field?.classList.toggle("show-days-open", isVisible);
@@ -1229,69 +1283,6 @@ function updateRecurringShowDaysVisibility() {
   [...els.recurringShowDays.querySelectorAll("input")].forEach((input) => {
     input.disabled = !isVisible || isDisabled;
   });
-
-  if (shouldAnimate) {
-    const afterSelectRect = els.recurringInterval.getBoundingClientRect();
-    const afterFieldRect = field.getBoundingClientRect();
-
-    els.recurringForm.classList.remove("recurring-form-measuring");
-    animateRecurringFormToggle(field, beforeSelectRect, beforeFieldRect, afterSelectRect, afterFieldRect, isVisible);
-  }
-}
-
-function shouldAnimateRecurringFormToggle(field, wasVisible, isVisible) {
-  return (
-    wasVisible !== isVisible &&
-    Boolean(field) &&
-    els.recurringForm.isConnected &&
-    !els.recurringForm.hidden &&
-    els.recurringForm.getClientRects().length > 0 &&
-    typeof els.recurringInterval.animate === "function" &&
-    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
-function animateRecurringFormToggle(field, beforeSelectRect, beforeFieldRect, afterSelectRect, afterFieldRect, isVisible) {
-  const selectDeltaX = beforeSelectRect.left - afterSelectRect.left;
-  const selectDeltaY = beforeSelectRect.top - afterSelectRect.top;
-
-  if (Math.abs(selectDeltaX) > 0.5 || Math.abs(selectDeltaY) > 0.5) {
-    els.recurringInterval.animate(
-      [
-        { transform: `translate3d(${selectDeltaX}px, ${selectDeltaY}px, 0)` },
-        { transform: "translate3d(0, 0, 0)" },
-      ],
-      {
-        duration: RECURRING_FORM_MOTION_MS,
-        easing: "cubic-bezier(0.22, 0.72, 0.2, 1)",
-      }
-    );
-  }
-
-  if (typeof field.animate !== "function") {
-    return;
-  }
-
-  const fieldDeltaX = beforeFieldRect.left - afterFieldRect.left;
-  const fieldStartX = isVisible ? Math.min(fieldDeltaX, -8) : 0;
-  const fieldEndX = isVisible ? 0 : Math.min(fieldDeltaX, -8);
-
-  field.animate(
-    [
-      {
-        opacity: isVisible ? 0 : 1,
-        transform: `translate3d(${fieldStartX}px, 0, 0)`,
-      },
-      {
-        opacity: isVisible ? 1 : 0,
-        transform: `translate3d(${fieldEndX}px, 0, 0)`,
-      },
-    ],
-    {
-      duration: RECURRING_FORM_MOTION_MS,
-      easing: "cubic-bezier(0.22, 0.72, 0.2, 1)",
-    }
-  );
 }
 
 function getRecurringAnyDayInput() {
@@ -1434,6 +1425,30 @@ function deleteAllTasks(listType) {
   hideDeleteConfirm();
   saveState();
   renderAll();
+}
+
+function removeTaskFromList(listType, taskId) {
+  const activeSet = getActiveListSet();
+  const tasks = activeSet.tasks[listType];
+
+  if (!Array.isArray(tasks)) {
+    return false;
+  }
+
+  const nextTasks = tasks.filter((item) => item.id !== taskId);
+
+  if (nextTasks.length === tasks.length) {
+    return false;
+  }
+
+  activeSet.tasks[listType] = nextTasks;
+  pendingAppendAnimations.delete(taskId);
+
+  if (isEditingTask(listType, taskId)) {
+    finishTaskEdit(listType);
+  }
+
+  return true;
 }
 
 function renderAll() {
@@ -1703,8 +1718,19 @@ function renderList(listType) {
       deleteBtn.disabled = true;
       editBtn.disabled = true;
       li.draggable = false;
-      activeSet.tasks[listType] = activeSet.tasks[listType].filter((item) => item.id !== task.id);
+
+      if (!removeTaskFromList(listType, task.id)) {
+        renderAll();
+        return;
+      }
+
       saveState();
+
+      if (usesRecurringTaskGrouping(listType)) {
+        renderRecurringPanel();
+        renderRjProgress();
+      }
+
       emptyEl.style.display = "none";
 
       runTaskExitAnimation(li, "remove-exit", () => {
@@ -1823,8 +1849,11 @@ function renderRecurringPanel() {
       }
 
       didDelete = true;
-      const activeSet = getActiveListSet();
-      activeSet.tasks.persistent = activeSet.tasks.persistent.filter((item) => item.id !== task.id);
+      if (!removeTaskFromList("persistent", task.id)) {
+        renderAll();
+        return;
+      }
+
       saveState();
       renderAll();
     };
@@ -2165,7 +2194,8 @@ function runTaskEditAnimation(itemEl, listType, task, onDone) {
     listType,
     inputStartRect.width,
     finalTargetRect.width,
-    cancelFinalWidth
+    cancelFinalWidth,
+    cancelMeasurement.marginLeft
   );
 
   const inputStyles = window.getComputedStyle(targetInput);
@@ -2323,6 +2353,7 @@ function revealTaskEditCancelButtonForAnimation(listType) {
 }
 
 function expandEditCancelButtonForMeasurement(cancelButton) {
+  const targetWidth = "2.45rem";
   const previousTransition = cancelButton.style.transition;
   const previousFlexBasis = cancelButton.style.flexBasis;
   const previousWidth = cancelButton.style.width;
@@ -2331,16 +2362,17 @@ function expandEditCancelButtonForMeasurement(cancelButton) {
   const previousTransform = cancelButton.style.transform;
 
   cancelButton.style.transition = "none";
-  cancelButton.style.flexBasis = "2.7rem";
-  cancelButton.style.width = "2.7rem";
+  cancelButton.style.flexBasis = targetWidth;
+  cancelButton.style.width = targetWidth;
   cancelButton.style.borderWidth = "1px";
   cancelButton.style.opacity = "1";
-  cancelButton.style.transform = "scale(1)";
+  cancelButton.style.transform = "none";
 
   const width = cancelButton.getBoundingClientRect().width;
 
   return {
     width,
+    marginLeft: window.getComputedStyle(cancelButton).marginLeft,
     restore() {
       cancelButton.style.transition = previousTransition;
       cancelButton.style.flexBasis = previousFlexBasis;
@@ -2352,7 +2384,7 @@ function expandEditCancelButtonForMeasurement(cancelButton) {
   };
 }
 
-function animateTaskFormControlsForEdit(listType, startInputWidth, endInputWidth, endCancelWidth) {
+function animateTaskFormControlsForEdit(listType, startInputWidth, endInputWidth, endCancelWidth, endCancelMarginLeft) {
   const form = els.lists[listType].form;
   const input = getTaskInput(listType);
   const cancelButton = getTaskEditCancelButton(listType);
@@ -2367,9 +2399,10 @@ function animateTaskFormControlsForEdit(listType, startInputWidth, endInputWidth
   const previousCancelOpacity = cancelButton.style.opacity;
   const previousCancelTransform = cancelButton.style.transform;
   const previousCancelTransition = cancelButton.style.transition;
+  const previousCancelMarginLeft = cancelButton.style.marginLeft;
   const easing = "cubic-bezier(0.22, 0.72, 0.2, 1)";
   const inputTiming = `flex-basis ${EDIT_TASK_MOTION_MS}ms ${easing}, width ${EDIT_TASK_MOTION_MS}ms ${easing}, max-width ${EDIT_TASK_MOTION_MS}ms ${easing}`;
-  const cancelTiming = `flex-basis ${EDIT_TASK_MOTION_MS}ms ${easing}, width ${EDIT_TASK_MOTION_MS}ms ${easing}, opacity 180ms ease, transform ${EDIT_TASK_MOTION_MS}ms ${easing}, border-width ${EDIT_TASK_MOTION_MS}ms ${easing}`;
+  const cancelTiming = `flex-basis ${EDIT_CANCEL_MOTION_MS}ms ${easing}, width ${EDIT_CANCEL_MOTION_MS}ms ${easing}, margin-left ${EDIT_CANCEL_MOTION_MS}ms ${easing}, opacity 120ms ease, border-width ${EDIT_CANCEL_MOTION_MS}ms ${easing}`;
 
   input.style.transition = "none";
   input.style.flex = `0 0 ${startInputWidth}px`;
@@ -2380,7 +2413,8 @@ function animateTaskFormControlsForEdit(listType, startInputWidth, endInputWidth
   cancelButton.style.width = "0px";
   cancelButton.style.borderWidth = "0";
   cancelButton.style.opacity = "0";
-  cancelButton.style.transform = "scale(0.84)";
+  cancelButton.style.transform = "none";
+  cancelButton.style.marginLeft = "0px";
   void form.offsetWidth;
 
   window.requestAnimationFrame(() => {
@@ -2393,7 +2427,8 @@ function animateTaskFormControlsForEdit(listType, startInputWidth, endInputWidth
     cancelButton.style.width = `${endCancelWidth}px`;
     cancelButton.style.borderWidth = "1px";
     cancelButton.style.opacity = "1";
-    cancelButton.style.transform = "scale(1)";
+    cancelButton.style.transform = "none";
+    cancelButton.style.marginLeft = endCancelMarginLeft;
   });
 
   return () => {
@@ -2408,6 +2443,7 @@ function animateTaskFormControlsForEdit(listType, startInputWidth, endInputWidth
     cancelButton.style.opacity = previousCancelOpacity;
     cancelButton.style.transform = previousCancelTransform;
     cancelButton.style.transition = previousCancelTransition;
+    cancelButton.style.marginLeft = previousCancelMarginLeft;
   };
 }
 
