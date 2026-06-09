@@ -3681,7 +3681,7 @@ select {
 /* Quick roll-down recurring chooser */
 .app.rj-mode .recurring-tools:not([hidden]) {
   position: relative;
-  z-index: auto;
+  z-index: 12;
   width: min(100%, 43rem);
   margin: 0.2rem auto 0.55rem;
   overflow: visible;
