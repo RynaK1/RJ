@@ -113,6 +113,7 @@ function normalizeListSetId(listSetId) {
 }
 
 let state = loadState();
+const didBackfillCompletionOrders = backfillCompletionOrders(state);
 let dragState = {
   listType: null,
   taskId: null,
@@ -210,7 +211,10 @@ function initialize() {
   renderDeleteListOptions();
   updateRecurringShowDaysVisibility();
   hydrateSettingsUI();
-  runTimedUpdatesIfNeeded();
+  const didTimedUpdate = runTimedUpdatesIfNeeded();
+  if (didBackfillCompletionOrders && !didTimedUpdate) {
+    saveState();
+  }
   wireEvents();
   window.setInterval(tickResets, 15000);
   renderAll();
@@ -749,7 +753,6 @@ function updateEditedTask(listType, text, isTaskOptionsSubmit) {
     clearTaskTimingFields(task);
   }
 
-  activeSet.tasks[listType] = orderTasksForList(listType, activeSet.tasks[listType]);
   finishTaskEdit(listType);
   saveState();
   renderAll();
@@ -780,6 +783,7 @@ function applyRjTaskOptions(task, shouldResetDone) {
 
     if (shouldResetDone) {
       task.done = false;
+      delete task.completedOrder;
     }
 
     return;
@@ -802,6 +806,7 @@ function applyRecurringTaskFields(task, shouldResetDone) {
 
   if (shouldResetDone) {
     task.done = false;
+    delete task.completedOrder;
     task.lastCompletedDate = "";
     delete task.lastRestoredDate;
   }
@@ -1513,8 +1518,8 @@ function renderList(listType) {
   const emptyEl = els.lists[listType].empty;
   const formEl = els.lists[listType].form;
 
-  activeSet.tasks[listType] = orderTasksForList(listType, taskSet);
-  const visibleTasks = getVisibleTasksForList(listType, activeSet.tasks[listType]);
+  const orderedTasks = orderTasksForList(listType, taskSet);
+  const visibleTasks = getVisibleTasksForList(listType, orderedTasks);
   formEl.style.display = shouldShowListForm(listType) ? "" : "none";
   setFormError(listType, "");
 
@@ -1527,7 +1532,7 @@ function renderList(listType) {
     li.dataset.taskId = task.id;
     li.dataset.recurring = String(isRecurringTask(task));
     li.dataset.taskGroup = getRjTaskGroup(task);
-    li.draggable = !isTaskEditing;
+    li.draggable = !isTaskEditing && !task.done;
 
     if (isTaskEditing) {
       li.classList.add("editing");
@@ -1546,6 +1551,11 @@ function renderList(listType) {
     }
 
     li.addEventListener("dragstart", (event) => {
+      if (task.done || isTaskEditing) {
+        event.preventDefault();
+        return;
+      }
+
       dragState = { listType, taskId: task.id, insertIndex: null };
       li.classList.add("dragging");
       listEl.classList.add("drag-active");
@@ -1937,6 +1947,14 @@ function isScheduledPanelTask(task) {
 }
 
 function compareScheduledPanelTasks(taskA, taskB) {
+  if (isRecurringTask(taskA) && isRecurringTask(taskB) && taskA.done && taskB.done) {
+    const completionOrder = getTaskCompletionOrder(taskA) - getTaskCompletionOrder(taskB);
+
+    if (completionOrder !== 0) {
+      return completionOrder;
+    }
+  }
+
   const dateA = getTaskAppearanceDateId(taskA);
   const dateB = getTaskAppearanceDateId(taskB);
 
@@ -1970,7 +1988,10 @@ function orderTasksForList(listType, tasks) {
 }
 
 function orderRjPersistentTasks(tasks) {
-  return RJ_TASK_GROUPS.flatMap((group) => tasks.filter((task) => getRjTaskGroup(task) === group));
+  return RJ_TASK_GROUPS.flatMap((group) => {
+    const groupTasks = tasks.filter((task) => getRjTaskGroup(task) === group);
+    return group.endsWith("-done") ? sortTasksByCompletionOrder(groupTasks) : groupTasks;
+  });
 }
 
 function getVisibleTasksForList(listType, tasks) {
@@ -2013,6 +2034,82 @@ function isScheduledOneTimeTask(task) {
   return !isRecurringTask(task) && Boolean(normalizeDateId(task?.showOnDate));
 }
 
+function normalizeCompletionOrder(value) {
+  const order = Number(value);
+  return Number.isSafeInteger(order) && order > 0 ? order : null;
+}
+
+function getTaskCompletionOrder(task) {
+  return normalizeCompletionOrder(task?.completedOrder) ?? Number.MAX_SAFE_INTEGER;
+}
+
+function sortTasksByCompletionOrder(tasks) {
+  return [...tasks].sort((taskA, taskB) => getTaskCompletionOrder(taskA) - getTaskCompletionOrder(taskB));
+}
+
+function getNextCompletionOrder() {
+  let maxOrder = 0;
+
+  LIST_SET_IDS.forEach((listSetId) => {
+    LIST_TYPES.forEach((listType) => {
+      state.listSets[listSetId].tasks[listType].forEach((task) => {
+        maxOrder = Math.max(maxOrder, normalizeCompletionOrder(task?.completedOrder) ?? 0);
+      });
+    });
+  });
+
+  return maxOrder + 1;
+}
+
+function setTaskCompletionState(task, done) {
+  task.done = done;
+
+  if (done) {
+    task.completedOrder = getNextCompletionOrder();
+  } else {
+    delete task.completedOrder;
+  }
+}
+
+function resetTaskCompletion(task) {
+  const nextTask = {
+    ...task,
+    done: false,
+  };
+
+  delete nextTask.completedOrder;
+  return nextTask;
+}
+
+function backfillCompletionOrders(targetState) {
+  let maxOrder = 0;
+  let didBackfill = false;
+
+  LIST_SET_IDS.forEach((listSetId) => {
+    LIST_TYPES.forEach((listType) => {
+      targetState.listSets[listSetId].tasks[listType].forEach((task) => {
+        maxOrder = Math.max(maxOrder, normalizeCompletionOrder(task?.completedOrder) ?? 0);
+      });
+    });
+  });
+
+  LIST_SET_IDS.forEach((listSetId) => {
+    LIST_TYPES.forEach((listType) => {
+      targetState.listSets[listSetId].tasks[listType].forEach((task) => {
+        if (!task.done || normalizeCompletionOrder(task?.completedOrder) !== null) {
+          return;
+        }
+
+        maxOrder += 1;
+        task.completedOrder = maxOrder;
+        didBackfill = true;
+      });
+    });
+  });
+
+  return didBackfill;
+}
+
 function getRjTaskGroup(task) {
   if (isRecurringTask(task)) {
     return task.done ? "recurring-done" : "recurring-open";
@@ -2022,7 +2119,7 @@ function getRjTaskGroup(task) {
 }
 
 function orderTasksByDone(tasks) {
-  return [...tasks.filter((task) => !task.done), ...tasks.filter((task) => task.done)];
+  return [...tasks.filter((task) => !task.done), ...sortTasksByCompletionOrder(tasks.filter((task) => task.done))];
 }
 
 function moveTaskAfterDoneChange(listType, taskId, done) {
@@ -2034,8 +2131,8 @@ function moveTaskAfterDoneChange(listType, taskId, done) {
     return;
   }
 
-  const [task] = tasks.splice(taskIndex, 1);
-  task.done = done;
+  const task = tasks[taskIndex];
+  setTaskCompletionState(task, done);
 
   if (usesRecurringTaskGrouping(listType) && isRecurringTask(task)) {
     if (done) {
@@ -2049,15 +2146,7 @@ function moveTaskAfterDoneChange(listType, taskId, done) {
       task.lastRestoredDate = todayId;
       task.nextDueDate = addDaysToDateId(task.recurringStartDate, task.intervalDays);
     }
-
-    activeSet.tasks[listType] = orderTasksForList(listType, [task, ...tasks]);
-    return;
   }
-
-  const firstDoneIndex = tasks.findIndex((item) => item.done);
-  tasks.splice(firstDoneIndex === -1 ? tasks.length : firstDoneIndex, 0, task);
-
-  activeSet.tasks[listType] = orderTasksForList(listType, tasks);
 }
 
 function removeExitedTaskItem(listType, itemEl) {
@@ -2493,6 +2582,13 @@ function handleListDragOver(event, listType) {
     return;
   }
 
+  const draggedTask = getActiveListSet().tasks[listType].find((task) => task.id === dragState.taskId);
+
+  if (!draggedTask || draggedTask.done) {
+    cleanupDragState();
+    return;
+  }
+
   event.preventDefault();
 
   if (event.dataTransfer) {
@@ -2507,6 +2603,13 @@ function handleListDragOver(event, listType) {
 
 function handleListDrop(event, listType) {
   if (dragState.listType !== listType || !dragState.taskId) {
+    return;
+  }
+
+  const draggedTask = getActiveListSet().tasks[listType].find((task) => task.id === dragState.taskId);
+
+  if (!draggedTask || draggedTask.done) {
+    cleanupDragState();
     return;
   }
 
@@ -2535,7 +2638,7 @@ function isPointInsideElement(clientX, clientY, element) {
 
 function getDropInsertIndex(listType, clientY) {
   const listEl = els.lists[listType].list;
-  const taskItems = [...listEl.querySelectorAll(".task-item:not(.dragging)")];
+  const taskItems = getDraggableTaskItems(listType);
 
   if (taskItems.length === 0) {
     return 0;
@@ -2566,7 +2669,7 @@ function clampDropInsertIndex(listType, insertIndex) {
 
   const draggedTask = getActiveListSet().tasks[listType].find((task) => task.id === dragState.taskId);
 
-  if (!draggedTask) {
+  if (!draggedTask || draggedTask.done) {
     return insertIndex;
   }
 
@@ -2576,7 +2679,7 @@ function clampDropInsertIndex(listType, insertIndex) {
 }
 
 function getVisibleTaskGroupRange(listType, targetGroup) {
-  const taskItems = [...els.lists[listType].list.querySelectorAll(".task-item:not(.dragging)")];
+  const taskItems = getDraggableTaskItems(listType);
   let start = 0;
 
   for (const group of RJ_TASK_GROUPS) {
@@ -2691,7 +2794,7 @@ function stopDragAutoScroll() {
 
 function renderDropIndicator(listType, insertIndex) {
   const listEl = els.lists[listType].list;
-  const taskItems = [...listEl.querySelectorAll(".task-item:not(.dragging)")];
+  const taskItems = getDraggableTaskItems(listType);
   const upperTask = taskItems[insertIndex - 1];
   const lowerTask = taskItems[insertIndex];
 
@@ -2733,71 +2836,71 @@ function cleanupDragState() {
 
 function reorderTaskToVisibleIndex(listType, dragId, insertIndex) {
   const activeSet = getActiveListSet();
-  const orderedTasks = orderTasksForList(listType, activeSet.tasks[listType]);
-  const draggedTask = orderedTasks.find((task) => task.id === dragId);
+  const tasks = activeSet.tasks[listType];
+  const draggedTask = tasks.find((task) => task.id === dragId);
 
-  if (!draggedTask) {
+  if (!draggedTask || draggedTask.done) {
     return;
   }
 
   if (usesRecurringTaskGrouping(listType)) {
-    reorderRecurringAwareTask(listType, dragId, insertIndex, orderedTasks, draggedTask);
+    reorderRecurringAwareTask(listType, dragId, insertIndex, tasks, draggedTask);
     return;
   }
 
-  const unfinishedTasks = orderedTasks.filter((task) => !task.done);
-  const finishedTasks = orderedTasks.filter((task) => task.done);
-  const groupTasks = draggedTask.done ? finishedTasks : unfinishedTasks;
-  const visibleGroupTasks = groupTasks.filter((task) => isTaskVisibleInList(listType, task));
-  const reorderedVisibleTasks = visibleGroupTasks.filter((task) => task.id !== dragId);
-  const fromIndex = visibleGroupTasks.findIndex((task) => task.id === dragId);
+  const visibleDraggableTasks = getVisibleTasksForList(listType, tasks).filter((task) => !task.done);
+  const reorderedVisibleTasks = visibleDraggableTasks.filter((task) => task.id !== dragId);
+  const fromIndex = visibleDraggableTasks.findIndex((task) => task.id === dragId);
 
   if (fromIndex < 0) {
     return;
   }
 
-  const visibleUnfinishedCount = draggedTask.done ? unfinishedTasks.filter((task) => isTaskVisibleInList(listType, task)).length : 0;
-  const moved = draggedTask;
-  const unfinishedCount = visibleUnfinishedCount;
-  const groupInsertIndex = insertIndex - unfinishedCount;
-  const boundedIndex = Math.max(0, Math.min(groupInsertIndex, reorderedVisibleTasks.length));
+  const boundedIndex = Math.max(0, Math.min(insertIndex, reorderedVisibleTasks.length));
 
-  reorderedVisibleTasks.splice(boundedIndex, 0, moved);
-  const reorderedGroupTasks = mergeVisibleTaskOrder(groupTasks, reorderedVisibleTasks, listType);
+  reorderedVisibleTasks.splice(boundedIndex, 0, draggedTask);
 
-  activeSet.tasks[listType] = draggedTask.done
-    ? [...unfinishedTasks, ...reorderedGroupTasks]
-    : [...reorderedGroupTasks, ...finishedTasks];
+  activeSet.tasks[listType] = mergeVisibleTaskOrder(
+    tasks,
+    reorderedVisibleTasks,
+    listType,
+    (task) => !task.done && isTaskVisibleInList(listType, task)
+  );
+}
+
+function getDraggableTaskItems(listType) {
+  return [...els.lists[listType].list.querySelectorAll(".task-item:not(.dragging):not(.done)")];
 }
 
 function reorderRecurringAwareTask(listType, dragId, insertIndex, orderedTasks, draggedTask) {
   const activeSet = getActiveListSet();
   const draggedGroup = getRjTaskGroup(draggedTask);
-  const visibleOrderedTasks = getVisibleTasksForList(listType, orderedTasks);
-  const groups = Object.fromEntries(
-    RJ_TASK_GROUPS.map((group) => [group, orderedTasks.filter((task) => getRjTaskGroup(task) === group)])
-  );
-  const groupTasks = groups[draggedGroup];
+  const groupTasks = orderedTasks.filter((task) => getRjTaskGroup(task) === draggedGroup);
   const visibleGroupTasks = groupTasks.filter((task) => isTaskVisibleInList(listType, task));
   const reorderedVisibleTasks = visibleGroupTasks.filter((task) => task.id !== dragId);
+  const visibleDraggableTasks = getVisibleTasksForList(listType, orderedTasks).filter((task) => !task.done);
   const groupStartIndex = RJ_TASK_GROUPS.slice(0, RJ_TASK_GROUPS.indexOf(draggedGroup)).reduce(
-    (count, group) => count + visibleOrderedTasks.filter((task) => getRjTaskGroup(task) === group).length,
+    (count, group) => count + visibleDraggableTasks.filter((task) => getRjTaskGroup(task) === group).length,
     0
   );
   const groupInsertIndex = insertIndex - groupStartIndex;
   const boundedIndex = Math.max(0, Math.min(groupInsertIndex, reorderedVisibleTasks.length));
 
   reorderedVisibleTasks.splice(boundedIndex, 0, draggedTask);
-  groups[draggedGroup] = mergeVisibleTaskOrder(groupTasks, reorderedVisibleTasks, listType);
 
-  activeSet.tasks[listType] = RJ_TASK_GROUPS.flatMap((group) => groups[group]);
+  activeSet.tasks[listType] = mergeVisibleTaskOrder(
+    orderedTasks,
+    reorderedVisibleTasks,
+    listType,
+    (task) => getRjTaskGroup(task) === draggedGroup && !task.done && isTaskVisibleInList(listType, task)
+  );
 }
 
-function mergeVisibleTaskOrder(groupTasks, reorderedVisibleTasks, listType) {
+function mergeVisibleTaskOrder(groupTasks, reorderedVisibleTasks, listType, shouldMergeTask = (task) => isTaskVisibleInList(listType, task)) {
   let visibleIndex = 0;
 
   return groupTasks.map((task) => {
-    if (!isTaskVisibleInList(listType, task)) {
+    if (!shouldMergeTask(task)) {
       return task;
     }
 
@@ -2835,17 +2938,19 @@ function refreshRecurringTasksIfNeeded() {
 
     didRefresh = true;
 
-    return {
+    const refreshedTask = {
       ...task,
       done: false,
       recurringStartDate: todayId,
       lastCompletedDate: "",
       nextDueDate: addDaysToDateId(todayId, task.intervalDays),
     };
+
+    delete refreshedTask.completedOrder;
+    return refreshedTask;
   });
 
   if (didRefresh) {
-    state.listSets.rj.tasks.persistent = orderRjPersistentTasks(state.listSets.rj.tasks.persistent);
     saveState();
   }
 
@@ -2865,13 +2970,13 @@ function runResetsIfNeeded() {
 
   if (listSet.periodIds.daily !== nextDailyPeriodId) {
     listSet.periodIds.daily = nextDailyPeriodId;
-    listSet.tasks.daily = listSet.tasks.daily.map((task) => ({ ...task, done: false }));
+    listSet.tasks.daily = listSet.tasks.daily.map(resetTaskCompletion);
     didReset = true;
   }
 
   if (listSet.periodIds.weekly !== nextWeeklyPeriodId) {
     listSet.periodIds.weekly = nextWeeklyPeriodId;
-    listSet.tasks.weekly = listSet.tasks.weekly.map((task) => ({ ...task, done: false }));
+    listSet.tasks.weekly = listSet.tasks.weekly.map(resetTaskCompletion);
     didReset = true;
   }
 
@@ -3280,7 +3385,12 @@ function normalizeTaskSet(taskSet) {
         text: String(task?.text || "").trim().slice(0, MAX_TASK_TEXT_LENGTH),
         done: Boolean(task?.done),
       };
+      const completedOrder = normalizeCompletionOrder(task?.completedOrder);
       const showOnDate = normalizeDateId(task?.showOnDate);
+
+      if (normalizedTask.done && completedOrder !== null) {
+        normalizedTask.completedOrder = completedOrder;
+      }
 
       if (!recurring && showOnDate) {
         normalizedTask.showOnDate = showOnDate;
