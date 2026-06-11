@@ -567,7 +567,7 @@ input:focus-visible {
 .settings-dialog {
   position: relative;
   z-index: 1;
-  width: min(100%, 440px);
+  width: min(100%, 480px);
   max-height: min(90vh, 620px);
   overflow-y: auto;
   box-shadow: 0 24px 70px rgba(55, 72, 54, 0.2);
@@ -579,6 +579,21 @@ input:focus-visible {
   justify-content: space-between;
   gap: var(--space-md);
   margin-bottom: var(--space-sm);
+}
+
+.settings-dialog-header h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.settings-title-icon {
+  display: inline-block;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 .settings-close-btn {
@@ -988,53 +1003,6 @@ input:focus-visible {
   border-color: var(--danger-border);
   background: #efd1cb;
   color: var(--danger-text);
-}
-
-.delete-option {
-  display: block;
-  padding-top: var(--space-sm);
-  border-top: 1px solid rgba(184, 196, 184, 0.55);
-}
-
-.settings-delete-control {
-  position: relative;
-  display: grid;
-  gap: 0.55rem;
-  width: 100%;
-}
-
-.settings-delete-btn {
-  --button-hover-bg: var(--danger-bg);
-  --button-hover-border: #ad766e;
-  --button-active-bg: #e5bdb7;
-  --button-active-border: #9a655f;
-  border-color: var(--danger-border);
-  background: transparent;
-  color: var(--danger-text);
-  font-weight: 700;
-}
-
-.settings-delete-picker {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.settings-delete-picker select {
-  width: 100%;
-}
-
-.settings-delete-control .delete-confirm {
-  position: static;
-  width: 100%;
-  min-height: auto;
-  padding: 0.45rem 0.55rem;
-  transform: none;
-}
-
-.settings-delete-confirm {
-  width: 100%;
 }
 
 .empty-msg {
@@ -2568,10 +2536,6 @@ input::placeholder {
   background: rgba(5, 12, 8, 0.66);
 }
 
-.delete-option {
-  border-top-color: rgba(207, 216, 200, 0.26);
-}
-
 .list-delete-btn,
 .confirm-delete-btn {
   color: var(--danger-text);
@@ -3104,6 +3068,10 @@ select {
   border: 1px solid currentColor;
 }
 
+.settings-dialog-header h2::before {
+  display: none;
+}
+
 .daily-card h2::before {
   border-radius: 50%;
   box-shadow: inset 0 0 0 0.18rem var(--bg);
@@ -3482,10 +3450,6 @@ select {
 
   .delete-confirm {
     width: min(16rem, calc(100vw - 2rem));
-  }
-
-  .settings-delete-confirm {
-    width: min(20rem, calc(100vw - 2rem));
   }
 
   .recurring-form {
@@ -4122,7 +4086,6 @@ select {
 /* Unified dropdown surface and quick open/close motion */
 select,
 .schedms-add-form select,
-.settings-delete-picker select,
 .app.rj-mode .recurring-form > select,
 .app.rj-mode .recurring-form.show-days-open > select {
   padding: 0.32rem 2.65rem 0.32rem 0.65rem;
@@ -4232,10 +4195,6 @@ select option,
   background: var(--bg);
 }
 
-.settings-delete-picker .custom-select {
-  width: 100%;
-}
-
 .schedms-add-form .custom-select {
   width: 100%;
   min-width: 0;
@@ -4283,6 +4242,341 @@ select option,
 
 .custom-select-menu[hidden] {
   display: none;
+}
+
+.auth-view[hidden],
+.app-header[hidden],
+#lists-view[hidden] {
+  display: none;
+}
+
+.auth-view {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: 1 1 auto;
+  min-height: min(38rem, calc(100dvh - 4rem));
+  place-items: center;
+  padding: clamp(1.25rem, 4vw, 3rem) 0;
+}
+
+.auth-panel {
+  display: grid;
+  width: min(100%, 25rem);
+  gap: 0.8rem;
+  padding: clamp(1rem, 3vw, 1.45rem);
+  color: var(--text);
+  background: var(--task-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.auth-panel h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.auth-panel label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.auth-mode-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 0.2rem;
+  border: 1px solid var(--border);
+}
+
+.auth-mode-btn {
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: transparent;
+}
+
+.auth-mode-btn:first-child {
+  border-left: 0;
+}
+
+.auth-mode-btn.active,
+.auth-submit-btn {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.auth-submit-btn {
+  margin-top: 0.25rem;
+  border-color: var(--accent);
+}
+
+.auth-message {
+  min-height: 1.2rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.auth-message.error {
+  color: var(--danger-text);
+}
+
+.header-session {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.auth-user-label {
+  max-width: min(18rem, 24vw);
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-sign-out-btn {
+  min-height: 2.1rem;
+  padding: 0.25rem 0.7rem;
+  color: var(--muted);
+  background: transparent;
+}
+
+.planner-owner-switcher {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border: 1px solid var(--border);
+}
+
+.planner-owner-switcher[hidden] {
+  display: none;
+}
+
+.planner-owner-switch {
+  min-width: 5.5rem;
+  border: 0;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  background: transparent;
+}
+
+.planner-owner-switch:first-child {
+  border-left: 0;
+}
+
+.planner-owner-switch.active {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.pairing-controls {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.pairing-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+}
+
+.pairing-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  background: var(--task-bg);
+}
+
+.pairing-connected-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+#pairing-connected-copy {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pairing-card[hidden],
+.pairing-form[hidden],
+.paired-name-editor[hidden] {
+  display: none;
+}
+
+.pairing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.paired-name-editor {
+  display: grid;
+  gap: 0.4rem;
+}
+
+#paired-name-toggle-btn,
+#pairing-remove-btn {
+  min-height: 2rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.pairing-message {
+  min-height: 1.2rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.pairing-message.error {
+  color: var(--danger-text);
+}
+
+.account-form,
+.account-delete-option {
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(184, 196, 184, 0.55);
+}
+
+.account-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.password-fields {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.password-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.password-fields[hidden] {
+  display: none;
+}
+
+.account-form > button,
+.password-fields button {
+  justify-self: start;
+}
+
+.account-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.account-message[hidden] {
+  display: none;
+}
+
+.account-message.error {
+  color: var(--danger-text);
+}
+
+.account-delete-control {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.account-delete-start-btn,
+.account-confirm-actions .confirm-delete-btn {
+  --button-hover-bg: var(--danger-bg);
+  --button-hover-border: #ad766e;
+  --button-active-bg: #e5bdb7;
+  --button-active-border: #9a655f;
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+  background: transparent;
+}
+
+.account-delete-start-btn {
+  justify-self: start;
+}
+
+.account-delete-confirm {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  color: var(--text);
+  background: var(--control-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+}
+
+.account-delete-confirm[hidden] {
+  display: none;
+}
+
+.account-delete-confirm p {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.account-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.account-confirm-actions button {
+  flex: 1 1 8rem;
+}
+
+.account-confirm-actions .confirm-delete-btn {
+  width: auto;
+  background: var(--danger-bg);
+  font-weight: 700;
+}
+
+.app.partner-view .task-item {
+  cursor: default;
+}
+
+@media (max-width: 700px) {
+  .header-session {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .auth-user-label {
+    max-width: min(100%, 14rem);
+  }
+
+  .planner-owner-switcher {
+    width: 100%;
+  }
+
+  .planner-owner-switch {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pairing-form {
+    grid-template-columns: 1fr;
+  }
+
+  .pairing-connected-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 .custom-select.open .custom-select-menu {

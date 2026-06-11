@@ -1,0 +1,1 @@
+{"net":{"http_server_properties":{"servers":[{"anonymization":["DAAAAAcAAABmaWxlOi8vAA==",false,0],"network_stats":{"srtt":26880},"server":"https://esm.sh"}],"supports_quic":{"address":"2607:fb92:2507:e775:e032:560e:e975:6845","used_quic":true},"version":5},"network_qualities":{"CAASABiAgICA+P////8B":"4G"}}}

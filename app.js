@@ -1,4 +1,12 @@
 const STORAGE_KEY = "schedms-data-v1";
+const SUPABASE_URL = "https://qvovatdgthvolgenmnir.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1Kp-mcwQyvdH6P_VEiyqFA_gFtRsAu3";
+const SUPABASE_CLIENT_MODULE_URL = "https://esm.sh/@supabase/supabase-js@2";
+const SUPABASE_CLIENT_FALLBACK_MODULE_URL = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+const SUPABASE_STATE_TABLE = "planner_states";
+const SUPABASE_PROFILE_TABLE = "planner_profiles";
+const SUPABASE_PAIRING_TABLE = "planner_pairings";
+const AUTH_MIGRATION_KEY = `${STORAGE_KEY}-auth-migrated-user`;
 const LIST_TYPES = ["daily", "weekly", "persistent"];
 const RJ_LIST_TYPES = ["persistent"];
 const LIST_SET_IDS = ["schedms", "rj"];
@@ -6,6 +14,7 @@ const DEFAULT_LIST_SET_ID = "schedms";
 const MIN_RECURRING_INTERVAL_DAYS = 1;
 const MAX_RECURRING_INTERVAL_DAYS = 7;
 const MAX_TASK_TEXT_LENGTH = 100;
+const MAX_PAIRED_DISPLAY_NAME_LENGTH = 15;
 const RJ_TASK_GROUPS = ["recurring-open", "one-time-open", "one-time-done", "recurring-done"];
 const RJ_TASK_OPTION_ONE_TIME = "one-time";
 const RJ_TASK_OPTION_DAILY = "daily";
@@ -76,6 +85,7 @@ const defaultState = {
   settings: {
     timezoneOffset: DEFAULT_TIMEZONE_OFFSET,
     daylightSavingsAdjustment: 0,
+    pairedAccountDisplayName: "",
   },
   lastSavedAt: "",
   activeListSet: DEFAULT_LIST_SET_ID,
@@ -112,8 +122,17 @@ function normalizeListSetId(listSetId) {
   return LIST_SET_IDS.includes(listSetId) ? listSetId : DEFAULT_LIST_SET_ID;
 }
 
+function isReadOnlyView() {
+  return plannerViewMode === "partner";
+}
+
+function getAcceptedPairing() {
+  return pairingContext.accepted;
+}
+
+let activeStorageKey = STORAGE_KEY;
 let state = loadState();
-const didBackfillCompletionOrders = backfillCompletionOrders(state);
+let didBackfillCompletionOrders = backfillCompletionOrders(state);
 let dragState = {
   listType: null,
   taskId: null,
@@ -133,11 +152,79 @@ let recurringCreateMode = false;
 let recurringFormCloseTimer = null;
 let completionAudioContext = null;
 let openCustomSelect = null;
+let supabaseClient = null;
+let supabaseUserId = "";
+let supabaseSyncReady = false;
+let supabaseSyncPending = false;
+let supabaseSyncInFlight = false;
+let supabaseSyncStatus = "local";
+let supabaseSyncErrorMessage = "";
+let signedInUserEmail = "";
+let authMode = "sign-in";
+let pendingLegacyMigrationUserId = "";
+let selfState = state;
+let partnerState = null;
+let plannerViewMode = "self";
+let pairingContext = {
+  accepted: null,
+  incoming: null,
+  outgoing: null,
+  profiles: {},
+};
+let pairingRefreshInFlight = false;
 const pendingAppendAnimations = new Set();
 const editCancelHideTimers = new Map();
 
 const els = {
   app: document.querySelector(".app"),
+  appHeader: document.getElementById("app-header"),
+  authView: document.getElementById("auth-view"),
+  authForm: document.getElementById("auth-form"),
+  authEmail: document.getElementById("auth-email"),
+  authPassword: document.getElementById("auth-password"),
+  authConfirmPasswordLabel: document.getElementById("auth-confirm-password-label"),
+  authConfirmPassword: document.getElementById("auth-confirm-password"),
+  authSubmitBtn: document.getElementById("auth-submit-btn"),
+  authSignInMode: document.getElementById("auth-sign-in-mode"),
+  authSignUpMode: document.getElementById("auth-sign-up-mode"),
+  authMessage: document.getElementById("auth-message"),
+  authUserLabel: document.getElementById("auth-user-label"),
+  authSignOutBtn: document.getElementById("auth-sign-out-btn"),
+  listsView: document.getElementById("lists-view"),
+  plannerOwnerSwitcher: document.getElementById("planner-owner-switcher"),
+  plannerOwnerButtons: document.querySelectorAll(".planner-owner-switch"),
+  partnerOwnerSwitch: document.getElementById("partner-owner-switch"),
+  pairingForm: document.getElementById("pairing-form"),
+  pairingEmail: document.getElementById("pairing-email"),
+  pairingInviteBtn: document.getElementById("pairing-invite-btn"),
+  pairingIncoming: document.getElementById("pairing-incoming"),
+  pairingIncomingCopy: document.getElementById("pairing-incoming-copy"),
+  pairingAcceptBtn: document.getElementById("pairing-accept-btn"),
+  pairingDeclineBtn: document.getElementById("pairing-decline-btn"),
+  pairingOutgoing: document.getElementById("pairing-outgoing"),
+  pairingOutgoingCopy: document.getElementById("pairing-outgoing-copy"),
+  pairingCancelBtn: document.getElementById("pairing-cancel-btn"),
+  pairingConnected: document.getElementById("pairing-connected"),
+  pairingConnectedCopy: document.getElementById("pairing-connected-copy"),
+  pairingRemoveBtn: document.getElementById("pairing-remove-btn"),
+  pairingMessage: document.getElementById("pairing-message"),
+  pairedNameToggleBtn: document.getElementById("paired-name-toggle-btn"),
+  pairedNameEditor: document.getElementById("paired-name-editor"),
+  pairedDisplayName: document.getElementById("paired-display-name"),
+  passwordForm: document.getElementById("password-form"),
+  passwordToggleBtn: document.getElementById("password-toggle-btn"),
+  passwordFields: document.getElementById("password-fields"),
+  newPassword: document.getElementById("new-password"),
+  confirmNewPassword: document.getElementById("confirm-new-password"),
+  passwordSubmitBtn: document.getElementById("password-submit-btn"),
+  passwordCancelBtn: document.getElementById("password-cancel-btn"),
+  passwordMessage: document.getElementById("password-message"),
+  deleteAccountStartBtn: document.getElementById("delete-account-start-btn"),
+  deleteAccountConfirm: document.getElementById("delete-account-confirm"),
+  deleteAccountConfirmInput: document.getElementById("delete-account-confirm-input"),
+  deleteAccountCancelBtn: document.getElementById("delete-account-cancel-btn"),
+  deleteAccountConfirmBtn: document.getElementById("delete-account-confirm-btn"),
+  deleteAccountMessage: document.getElementById("delete-account-message"),
   settingsOpenBtn: document.getElementById("settings-open-btn"),
   settingsCloseBtn: document.getElementById("settings-close-btn"),
   settingsModal: document.getElementById("settings-modal"),
@@ -149,11 +236,6 @@ const els = {
   schedmsInput: document.getElementById("schedms-input"),
   schedmsTargetList: document.getElementById("schedms-target-list"),
   schedmsAddError: document.getElementById("schedms-add-error"),
-  settingsDeleteList: document.getElementById("delete-list-select"),
-  settingsDeleteBtn: document.getElementById("settings-delete-btn"),
-  settingsDeleteConfirm: document.getElementById("settings-delete-confirm"),
-  settingsDeleteConfirmCopy: document.getElementById("settings-delete-confirm-copy"),
-  settingsConfirmDeleteBtn: document.getElementById("settings-confirm-delete-btn"),
   recurringTools: document.getElementById("recurring-tools"),
   recurringToggleBtn: document.getElementById("recurring-toggle-btn"),
   recurringForm: document.getElementById("recurring-form"),
@@ -208,7 +290,6 @@ initialize();
 function initialize() {
   populateTimezoneOptions();
   populateRecurringShowDayOptions();
-  renderDeleteListOptions();
   updateRecurringShowDaysVisibility();
   hydrateSettingsUI();
   const didTimedUpdate = runTimedUpdatesIfNeeded();
@@ -219,12 +300,15 @@ function initialize() {
   window.setInterval(tickResets, 15000);
   renderAll();
   ensureSaveStatusTimestamp();
+  initializeSupabaseSync();
 }
 
 function tickResets() {
-  if (runTimedUpdatesIfNeeded()) {
+  if (!isReadOnlyView() && runTimedUpdatesIfNeeded()) {
     renderAll();
   }
+
+  void refreshPairingContext({ silent: true });
 }
 
 function populateTimezoneOptions() {
@@ -261,42 +345,30 @@ function createRecurringShowDayOption(labelText, value, checked) {
   return label;
 }
 
-function renderDeleteListOptions() {
-  const deletableListTypes = getDeletableListTypes();
-  const selectedListType = deletableListTypes.includes(els.settingsDeleteList.value) ? els.settingsDeleteList.value : "";
-
-  els.settingsDeleteList.innerHTML = "";
-  els.settingsDeleteList.appendChild(createDeleteListOption("", "Choose list", true));
-
-  deletableListTypes.forEach((listType) => {
-    els.settingsDeleteList.appendChild(createDeleteListOption(listType, LIST_LABELS[listType]));
-  });
-
-  els.settingsDeleteList.value = selectedListType;
-  updateSettingsDeleteButtonState();
-  syncCustomSelect(els.settingsDeleteList);
-
-  const confirmedListType = els.settingsConfirmDeleteBtn.dataset.confirmDelete;
-  if (confirmedListType && !deletableListTypes.includes(confirmedListType)) {
-    hideDeleteConfirm("settings");
-  }
-}
-
-function createDeleteListOption(value, labelText, isPlaceholder = false) {
-  const option = document.createElement("option");
-  option.value = value;
-  option.textContent = labelText;
-  option.disabled = isPlaceholder;
-  option.hidden = isPlaceholder;
-  return option;
-}
-
-function getDeletableListTypes() {
-  return state.activeListSet === "rj" ? RJ_LIST_TYPES : LIST_TYPES;
-}
-
 function wireEvents() {
   initializeCustomSelects();
+
+  els.authForm.addEventListener("submit", handleAuthSubmit);
+  els.authSignInMode.addEventListener("click", () => setAuthMode("sign-in"));
+  els.authSignUpMode.addEventListener("click", () => setAuthMode("sign-up"));
+  els.authSignOutBtn.addEventListener("click", handleSignOut);
+  els.plannerOwnerButtons.forEach((button) => {
+    button.addEventListener("click", () => switchPlannerOwner(button.dataset.plannerOwner));
+  });
+  els.pairingForm.addEventListener("submit", handlePairingInviteSubmit);
+  els.pairingAcceptBtn.addEventListener("click", () => respondToIncomingPairing(true));
+  els.pairingDeclineBtn.addEventListener("click", () => respondToIncomingPairing(false));
+  els.pairingCancelBtn.addEventListener("click", cancelOutgoingPairing);
+  els.pairingRemoveBtn.addEventListener("click", removeAcceptedPairing);
+  els.pairedNameToggleBtn.addEventListener("click", togglePairedNameEditor);
+  els.pairedDisplayName.addEventListener("input", handlePairedDisplayNameInput);
+  els.passwordToggleBtn.addEventListener("click", showPasswordFields);
+  els.passwordCancelBtn.addEventListener("click", cancelPasswordChange);
+  els.passwordForm.addEventListener("submit", handlePasswordChangeSubmit);
+  els.deleteAccountStartBtn.addEventListener("click", showDeleteAccountConfirm);
+  els.deleteAccountCancelBtn.addEventListener("click", hideDeleteAccountConfirm);
+  els.deleteAccountConfirmInput.addEventListener("input", updateDeleteAccountConfirmState);
+  els.deleteAccountConfirmBtn.addEventListener("click", handleDeleteAccountConfirm);
 
   els.settingsOpenBtn.addEventListener("click", openSettingsModal);
   els.settingsCloseBtn.addEventListener("click", closeSettingsModal);
@@ -326,9 +398,6 @@ function wireEvents() {
   els.recurringPanel.addEventListener("focusin", openRecurringPanel);
   els.recurringPanel.addEventListener("focusout", closeRecurringPanelAfterFocusLeaves);
   els.recurringPanelToggle.addEventListener("click", handleRecurringPanelToggleClick);
-
-  els.settingsDeleteList.addEventListener("change", handleSettingsDeleteListChange);
-  els.settingsDeleteBtn.addEventListener("click", showSettingsDeleteConfirm);
 
   els.deleteListButtons.forEach((button) => {
     const listType = button.dataset.deleteList;
@@ -369,6 +438,11 @@ function wireEvents() {
   });
 
   els.timezoneOffset.addEventListener("change", () => {
+    if (isReadOnlyView()) {
+      hydrateSettingsUI();
+      return;
+    }
+
     state.settings.timezoneOffset = els.timezoneOffset.value;
     saveState();
     runTimedUpdatesIfNeeded();
@@ -376,6 +450,11 @@ function wireEvents() {
   });
 
   els.dstAdjustment.addEventListener("change", () => {
+    if (isReadOnlyView()) {
+      hydrateSettingsUI();
+      return;
+    }
+
     state.settings.daylightSavingsAdjustment = els.dstAdjustment.checked ? 1 : 0;
     saveState();
     runTimedUpdatesIfNeeded();
@@ -605,6 +684,10 @@ function getFocusableCustomOptions(wrapper) {
 function handleSchedmsAddSubmit(event) {
   event.preventDefault();
 
+  if (isReadOnlyView()) {
+    return;
+  }
+
   const text = els.schedmsInput.value.trim().slice(0, MAX_TASK_TEXT_LENGTH);
   const listType = normalizeSchedmsTargetList(els.schedmsTargetList.value);
 
@@ -687,6 +770,10 @@ function playCompletionTone(audioContext, startTime, frequency, peakGain, durati
 }
 
 function handleTaskFormSubmit(form) {
+  if (isReadOnlyView()) {
+    return;
+  }
+
   const listType = form.dataset.list;
   const input = getTaskInput(listType);
   const text = input.value.trim().slice(0, MAX_TASK_TEXT_LENGTH);
@@ -733,6 +820,10 @@ function addNewTask(listType, text, isTaskOptionsSubmit) {
 }
 
 function updateEditedTask(listType, text, isTaskOptionsSubmit) {
+  if (isReadOnlyView()) {
+    return;
+  }
+
   const activeSet = getActiveListSet();
   const task = activeSet.tasks[listType].find((item) => item.id === editState.taskId);
 
@@ -839,14 +930,53 @@ function switchListSet(listSetId) {
   hideDeleteConfirm();
   cancelTaskEdit();
   state.activeListSet = nextListSetId;
-  runTimedUpdatesIfNeeded();
-  saveState();
+  if (!isReadOnlyView()) {
+    runTimedUpdatesIfNeeded();
+    saveState();
+  }
   renderAll();
 }
 
-function openSettingsModal() {
-  renderDeleteListOptions();
+function switchPlannerOwner(owner) {
+  const nextOwner = owner === "partner" ? "partner" : "self";
+
+  if (plannerViewMode === nextOwner) {
+    return;
+  }
+
+  if (nextOwner === "partner" && !getAcceptedPairing()) {
+    return;
+  }
+
+  cleanupDragState();
+  closeCustomSelect(openCustomSelect, true);
   hideDeleteConfirm();
+  cancelTaskEdit();
+
+  if (plannerViewMode === "self") {
+    selfState = state;
+  } else {
+    partnerState = state;
+  }
+
+  plannerViewMode = nextOwner;
+  state = plannerViewMode === "partner" ? partnerState || createPartnerFallbackState() : selfState;
+  hydrateSettingsUI();
+  renderAll();
+  renderPairingControls();
+  renderSaveStatus();
+
+  if (plannerViewMode === "partner") {
+    void loadPartnerPlannerState();
+  }
+}
+
+function openSettingsModal() {
+  hydrateSettingsUI();
+  hideDeleteConfirm();
+  hidePairedNameEditor();
+  resetPasswordSection();
+  hideDeleteAccountConfirm({ restoreFocus: false });
   els.settingsModal.hidden = false;
   els.settingsOpenBtn.setAttribute("aria-expanded", "true");
   els.settingsCloseBtn.focus();
@@ -857,10 +987,17 @@ function closeSettingsModal() {
   els.settingsModal.hidden = true;
   els.settingsOpenBtn.setAttribute("aria-expanded", "false");
   hideDeleteConfirm();
+  hidePairedNameEditor();
+  resetPasswordSection();
+  hideDeleteAccountConfirm({ restoreFocus: false });
   els.settingsOpenBtn.focus();
 }
 
 function toggleRecurringForm() {
+  if (isReadOnlyView()) {
+    return;
+  }
+
   setRecurringCreateMode(!recurringCreateMode);
 }
 
@@ -1027,6 +1164,10 @@ function prepareTaskEditMode(listType, task) {
 }
 
 function enterTaskEditMode(listType, taskId) {
+  if (isReadOnlyView()) {
+    return;
+  }
+
   const task = getActiveListSet().tasks[listType].find((item) => item.id === taskId);
 
   if (!task) {
@@ -1337,50 +1478,8 @@ function setRecurringError(message) {
   els.recurringError.textContent = message;
 }
 
-function handleSettingsDeleteListChange() {
-  updateSettingsDeleteButtonState();
-
-  if (els.settingsDeleteConfirm.hidden) {
-    return;
-  }
-
-  const listType = getSelectedDeleteListType();
-  if (!listType) {
-    hideDeleteConfirm("settings");
-    return;
-  }
-
-  updateSettingsDeleteConfirm(listType);
-}
-
-function updateSettingsDeleteButtonState() {
-  els.settingsDeleteBtn.disabled = !getSelectedDeleteListType();
-}
-
-function showSettingsDeleteConfirm() {
-  const listType = getSelectedDeleteListType();
-  if (!listType) {
-    updateSettingsDeleteButtonState();
-    els.settingsDeleteList.focus();
-    return;
-  }
-
-  updateSettingsDeleteConfirm(listType);
-  showDeleteConfirm("settings");
-}
-
-function updateSettingsDeleteConfirm(listType) {
-  els.settingsConfirmDeleteBtn.dataset.confirmDelete = listType;
-  els.settingsDeleteConfirmCopy.textContent = `Delete all tasks from ${LIST_LABELS[listType]}?`;
-}
-
-function getSelectedDeleteListType() {
-  const listType = els.settingsDeleteList.value;
-  return getDeletableListTypes().includes(listType) ? listType : "";
-}
-
 function showDeleteConfirm(confirmKey) {
-  if (confirmKey !== "settings" && !LIST_TYPES.includes(confirmKey)) {
+  if (!LIST_TYPES.includes(confirmKey)) {
     return;
   }
 
@@ -1409,7 +1508,7 @@ function hideDeleteConfirm(listType = null) {
       control?.classList.remove("confirming");
 
       if (listType) {
-        restoredButton = control?.querySelector("[data-delete-list], .settings-delete-btn");
+        restoredButton = control?.querySelector("[data-delete-list]");
       }
     }
   });
@@ -1418,6 +1517,10 @@ function hideDeleteConfirm(listType = null) {
 }
 
 function deleteAllTasks(listType) {
+  if (isReadOnlyView()) {
+    return;
+  }
+
   if (!LIST_TYPES.includes(listType)) {
     return;
   }
@@ -1459,7 +1562,8 @@ function removeTaskFromList(listType, taskId) {
 function renderAll() {
   renderActiveLayout();
   renderListSetSwitcher();
-  renderDeleteListOptions();
+  renderPlannerOwnerSwitcher();
+  renderPairingControls();
 
   LIST_TYPES.forEach((listType) => {
     renderList(listType);
@@ -1471,13 +1575,19 @@ function renderAll() {
 
 function renderActiveLayout() {
   const isRjMode = state.activeListSet === "rj";
+  const isReadOnly = isReadOnlyView();
 
   document.body.classList.toggle("rj-mode", isRjMode);
   els.app.classList.toggle("rj-mode", isRjMode);
-  els.schedmsQuickAdd.hidden = isRjMode || Boolean(editState && editState.listSetId === "schedms");
+  els.app.classList.toggle("partner-view", isReadOnly);
+  els.schedmsQuickAdd.hidden = isReadOnly || isRjMode || Boolean(editState && editState.listSetId === "schedms");
   els.rjProgress.hidden = !isRjMode;
   els.recurringTools.hidden = !isRjMode;
   els.recurringPanel.hidden = !isRjMode;
+  els.timezoneOffset.disabled = isReadOnly;
+  els.dstAdjustment.disabled = isReadOnly;
+  syncCustomSelect(els.timezoneOffset);
+  els.recurringToggleBtn.disabled = isReadOnly;
   els.lists.daily.card.hidden = isRjMode;
   els.lists.weekly.card.hidden = isRjMode;
 
@@ -1500,6 +1610,19 @@ function renderListSetSwitcher() {
   });
 }
 
+function renderPlannerOwnerSwitcher() {
+  const acceptedPairing = getAcceptedPairing();
+
+  els.plannerOwnerSwitcher.hidden = !acceptedPairing;
+  els.partnerOwnerSwitch.textContent = acceptedPairing ? getPairingDisplayName(acceptedPairing) : "Partner";
+
+  els.plannerOwnerButtons.forEach((button) => {
+    const isActive = button.dataset.plannerOwner === plannerViewMode;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
 function renderRjProgress() {
   const tasks = RJ_LIST_TYPES.flatMap((listType) => getVisibleTasksForList(listType, getActiveListSet().tasks[listType]));
   const totalCount = tasks.length;
@@ -1517,6 +1640,7 @@ function renderList(listType) {
   const listEl = els.lists[listType].list;
   const emptyEl = els.lists[listType].empty;
   const formEl = els.lists[listType].form;
+  const isReadOnly = isReadOnlyView();
 
   const orderedTasks = orderTasksForList(listType, taskSet);
   const visibleTasks = getVisibleTasksForList(listType, orderedTasks);
@@ -1532,7 +1656,7 @@ function renderList(listType) {
     li.dataset.taskId = task.id;
     li.dataset.recurring = String(isRecurringTask(task));
     li.dataset.taskGroup = getRjTaskGroup(task);
-    li.draggable = !isTaskEditing && !task.done;
+    li.draggable = !isReadOnly && !isTaskEditing && !task.done;
 
     if (isTaskEditing) {
       li.classList.add("editing");
@@ -1628,9 +1752,11 @@ function renderList(listType) {
     trashIcon.setAttribute("aria-hidden", "true");
     deleteBtn.appendChild(trashIcon);
 
-    actions.append(editBtn, deleteBtn);
+    if (!isReadOnly) {
+      actions.append(editBtn, deleteBtn);
+    }
 
-    if (isTaskEditing) {
+    if (isReadOnly || isTaskEditing) {
       checkbox.disabled = true;
       editBtn.disabled = true;
       deleteBtn.disabled = true;
@@ -1640,6 +1766,11 @@ function renderList(listType) {
     let taskPointerStart = null;
 
     const setTaskDone = (nextDone) => {
+      if (isReadOnlyView()) {
+        checkbox.checked = task.done;
+        return;
+      }
+
       if (taskActionStarted) {
         return;
       }
@@ -1719,6 +1850,10 @@ function renderList(listType) {
     });
 
     const deleteTask = () => {
+      if (isReadOnlyView()) {
+        return;
+      }
+
       if (taskActionStarted) {
         return;
       }
@@ -1749,6 +1884,10 @@ function renderList(listType) {
     };
 
     const editTask = () => {
+      if (isReadOnlyView()) {
+        return;
+      }
+
       if (taskActionStarted) {
         return;
       }
@@ -1809,6 +1948,7 @@ function renderList(listType) {
 }
 
 function renderRecurringPanel() {
+  const isReadOnly = isReadOnlyView();
   const scheduledTasks =
     state.activeListSet === "rj" ? getScheduledPanelTasks(getActiveListSet().tasks.persistent) : [];
 
@@ -1854,6 +1994,10 @@ function renderRecurringPanel() {
     let didDelete = false;
 
     const deleteScheduledTask = () => {
+      if (isReadOnlyView()) {
+        return;
+      }
+
       if (didDelete) {
         return;
       }
@@ -1869,6 +2013,10 @@ function renderRecurringPanel() {
     };
 
     const restoreRecurringTask = () => {
+      if (isReadOnlyView()) {
+        return;
+      }
+
       if (!isRecurringTask(task) || !task.done || didDelete) {
         return;
       }
@@ -1880,7 +2028,7 @@ function renderRecurringPanel() {
       animateListReflow("persistent", beforePositions);
     };
 
-    if (isRecurringTask(task) && task.done) {
+    if (!isReadOnly && isRecurringTask(task) && task.done) {
       li.tabIndex = 0;
       li.setAttribute("role", "button");
       li.setAttribute("aria-label", `Show recurring task on To-Do list: ${task.text}`);
@@ -1926,7 +2074,9 @@ function renderRecurringPanel() {
       li.appendChild(status);
     }
 
-    li.appendChild(deleteBtn);
+    if (!isReadOnly) {
+      li.appendChild(deleteBtn);
+    }
     els.recurringPanelList.appendChild(li);
   });
 
@@ -1972,6 +2122,10 @@ function compareScheduledPanelTasks(taskA, taskB) {
 }
 
 function shouldShowListForm(listType) {
+  if (isReadOnlyView()) {
+    return false;
+  }
+
   if (state.activeListSet === "rj") {
     return listType === "persistent";
   }
@@ -2602,6 +2756,12 @@ function handleListDragOver(event, listType) {
 }
 
 function handleListDrop(event, listType) {
+  if (isReadOnlyView()) {
+    event.preventDefault();
+    cleanupDragState();
+    return;
+  }
+
   if (dragState.listType !== listType || !dragState.taskId) {
     return;
   }
@@ -2913,6 +3073,7 @@ function mergeVisibleTaskOrder(groupTasks, reorderedVisibleTasks, listType, shou
 function hydrateSettingsUI() {
   els.timezoneOffset.value = state.settings.timezoneOffset;
   els.dstAdjustment.checked = state.settings.daylightSavingsAdjustment === 1;
+  els.pairedDisplayName.value = selfState?.settings?.pairedAccountDisplayName || "";
   syncCustomSelect(els.timezoneOffset);
 }
 
@@ -3019,6 +3180,10 @@ function normalizeTimezoneOffset(offset) {
 function normalizeDstAdjustment(value) {
   const adjustment = Number(value);
   return [0, 1].includes(adjustment) ? adjustment : 0;
+}
+
+function normalizePairedDisplayName(value) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, MAX_PAIRED_DISPLAY_NAME_LENGTH);
 }
 
 function normalizeRecurringIntervalDays(value) {
@@ -3429,55 +3594,924 @@ function normalizeListSetState(listSet) {
 }
 
 function loadState() {
+  return loadStateFromStorage(activeStorageKey);
+}
+
+function loadStateFromStorage(storageKey) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-
-    if (!raw) {
-      return structuredClone(defaultState);
-    }
-
-    const parsed = JSON.parse(raw);
-
-    const legacyListSet = {
-      periodIds: parsed?.periodIds,
-      tasks: parsed?.tasks,
-    };
-    const listSets = Object.fromEntries(
-      LIST_SET_IDS.map((listSetId) => [
-        listSetId,
-        normalizeListSetState(
-          parsed?.listSets?.[listSetId] ?? (listSetId === DEFAULT_LIST_SET_ID ? legacyListSet : undefined)
-        ),
-      ])
-    );
-
-    return {
-      settings: {
-        timezoneOffset: normalizeTimezoneOffset(parsed?.settings?.timezoneOffset),
-        daylightSavingsAdjustment: normalizeDstAdjustment(parsed?.settings?.daylightSavingsAdjustment),
-      },
-      lastSavedAt: normalizeSavedAt(parsed?.lastSavedAt),
-      activeListSet: normalizeListSetId(parsed?.activeListSet),
-      listSets,
-    };
+    const raw = localStorage.getItem(storageKey);
+    return normalizeStateData(raw ? JSON.parse(raw) : null);
   } catch {
     return structuredClone(defaultState);
   }
 }
 
+function hasStoredState(storageKey = activeStorageKey) {
+  try {
+    return localStorage.getItem(storageKey) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function getUserStorageKey(userId) {
+  return `${STORAGE_KEY}:${userId}`;
+}
+
+function normalizeStateData(parsed) {
+  if (!parsed) {
+    return structuredClone(defaultState);
+  }
+
+  const legacyListSet = {
+    periodIds: parsed?.periodIds,
+    tasks: parsed?.tasks,
+  };
+  const listSets = Object.fromEntries(
+    LIST_SET_IDS.map((listSetId) => [
+      listSetId,
+      normalizeListSetState(
+        parsed?.listSets?.[listSetId] ?? (listSetId === DEFAULT_LIST_SET_ID ? legacyListSet : undefined)
+      ),
+    ])
+  );
+
+  return {
+    settings: {
+      timezoneOffset: normalizeTimezoneOffset(parsed?.settings?.timezoneOffset),
+      daylightSavingsAdjustment: normalizeDstAdjustment(parsed?.settings?.daylightSavingsAdjustment),
+      pairedAccountDisplayName: normalizePairedDisplayName(parsed?.settings?.pairedAccountDisplayName),
+    },
+    lastSavedAt: normalizeSavedAt(parsed?.lastSavedAt),
+    activeListSet: normalizeListSetId(parsed?.activeListSet),
+    listSets,
+  };
+}
+
+async function initializeSupabaseSync() {
+  setAuthMessage("Connecting to Supabase...");
+  setAuthLoading(true);
+
+  try {
+    const { createClient } = await importSupabaseClient();
+    supabaseClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
+    });
+
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user && supabaseUserId) {
+        showAuthView();
+      }
+    });
+
+    const { data, error } = await supabaseClient.auth.getSession();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data.session?.user) {
+      showAuthView("Sign in to load your planner.");
+      return;
+    }
+
+    await loadAuthenticatedPlanner(data.session.user);
+  } catch (error) {
+    showAuthView(`Supabase error: ${formatSupabaseError(error)}`, true);
+  } finally {
+    setAuthLoading(false);
+  }
+}
+
+async function importSupabaseClient() {
+  try {
+    return await import(SUPABASE_CLIENT_MODULE_URL);
+  } catch (primaryError) {
+    try {
+      return await import(SUPABASE_CLIENT_FALLBACK_MODULE_URL);
+    } catch (fallbackError) {
+      throw new Error(
+        `Could not load Supabase client. Primary: ${formatSupabaseError(primaryError)}. Fallback: ${formatSupabaseError(fallbackError)}`
+      );
+    }
+  }
+}
+
+async function loadAuthenticatedPlanner(user) {
+  setSupabaseSyncStatus("connecting");
+  supabaseUserId = user.id;
+  signedInUserEmail = user.email || "Signed in";
+  activeStorageKey = getUserStorageKey(user.id);
+  plannerViewMode = "self";
+  partnerState = null;
+  pairingContext = createEmptyPairingContext();
+
+  await upsertPlannerProfile(user);
+
+  const hasUserLocalState = hasStoredState(activeStorageKey);
+  const userLocalState = hasUserLocalState ? loadStateFromStorage(activeStorageKey) : null;
+  const remoteState = await loadSupabaseState();
+  const shouldMigrateLegacyState = shouldImportLegacyState(user.id, hasUserLocalState, remoteState);
+  const localState = shouldMigrateLegacyState ? loadStateFromStorage(STORAGE_KEY) : userLocalState;
+  const hasLocalState = Boolean(localState);
+  const shouldUseRemoteState = remoteState && (!hasLocalState || isStateNewer(remoteState, localState));
+  let shouldUploadState = !remoteState || (!shouldUseRemoteState && hasLocalState && isStateNewer(localState, remoteState));
+
+  state = shouldUseRemoteState ? remoteState : localState || structuredClone(defaultState);
+  if (!state.lastSavedAt) {
+    state.lastSavedAt = new Date().toISOString();
+    shouldUploadState = true;
+  }
+  selfState = state;
+
+  const didAuthBackfill = backfillCompletionOrders(state);
+  const didAuthTimedUpdate = runTimedUpdatesIfNeeded();
+
+  if (didAuthBackfill || didAuthTimedUpdate) {
+    shouldUploadState = true;
+  }
+
+  persistLocalState();
+  await refreshPairingContext({ silent: true });
+  hydrateStateUIAfterRemoteLoad();
+  showPlannerView();
+
+  supabaseSyncReady = true;
+  setSupabaseSyncStatus("synced");
+
+  if (shouldMigrateLegacyState) {
+    pendingLegacyMigrationUserId = user.id;
+  }
+
+  if (shouldUploadState || shouldMigrateLegacyState) {
+    queueSupabaseSync();
+  }
+}
+
+function shouldImportLegacyState(userId, hasUserLocalState, remoteState) {
+  if (hasUserLocalState || remoteState || !hasStoredState(STORAGE_KEY)) {
+    return false;
+  }
+
+  try {
+    return localStorage.getItem(AUTH_MIGRATION_KEY) !== userId;
+  } catch {
+    return true;
+  }
+}
+
+function createEmptyPairingContext() {
+  return {
+    accepted: null,
+    incoming: null,
+    outgoing: null,
+    profiles: {},
+  };
+}
+
+async function upsertPlannerProfile(user) {
+  const email = String(user.email || "").trim().toLowerCase();
+
+  if (!email) {
+    throw new Error("Supabase did not return an email for this user.");
+  }
+
+  const { error } = await supabaseClient.from(SUPABASE_PROFILE_TABLE).upsert({
+    owner_id: user.id,
+    email,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  signedInUserEmail = email;
+}
+
+async function refreshPairingContext({ silent = false } = {}) {
+  if (!supabaseClient || !supabaseUserId || pairingRefreshInFlight) {
+    return;
+  }
+
+  pairingRefreshInFlight = true;
+
+  try {
+    const { data: pairings, error } = await supabaseClient
+      .from(SUPABASE_PAIRING_TABLE)
+      .select("id, requester_id, recipient_id, status, created_at, responded_at")
+      .or(`requester_id.eq.${supabaseUserId},recipient_id.eq.${supabaseUserId}`)
+      .in("status", ["pending", "accepted"])
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    const context = createEmptyPairingContext();
+    const activePairings = Array.isArray(pairings) ? pairings : [];
+
+    context.accepted = activePairings.find((pairing) => pairing.status === "accepted") || null;
+    context.incoming =
+      activePairings.find((pairing) => pairing.status === "pending" && pairing.recipient_id === supabaseUserId) || null;
+    context.outgoing =
+      activePairings.find((pairing) => pairing.status === "pending" && pairing.requester_id === supabaseUserId) || null;
+
+    const profileIds = [
+      supabaseUserId,
+      ...activePairings.map((pairing) => getOtherPairingUserId(pairing)).filter(Boolean),
+    ];
+    context.profiles = await loadPlannerProfiles([...new Set(profileIds)]);
+    pairingContext = context;
+
+    if (!context.accepted && plannerViewMode === "partner") {
+      plannerViewMode = "self";
+      state = selfState;
+      partnerState = null;
+    }
+
+    if (context.accepted) {
+      await loadPartnerPlannerState({ silent: true });
+    } else {
+      partnerState = null;
+    }
+
+    renderPairingControls();
+    renderPlannerOwnerSwitcher();
+    renderSaveStatus();
+  } catch (error) {
+    if (!silent) {
+      setPairingMessage(formatSupabaseError(error), true);
+    }
+  } finally {
+    pairingRefreshInFlight = false;
+  }
+}
+
+async function loadPlannerProfiles(ownerIds) {
+  if (!ownerIds.length) {
+    return {};
+  }
+
+  const { data, error } = await supabaseClient
+    .from(SUPABASE_PROFILE_TABLE)
+    .select("owner_id, email")
+    .in("owner_id", ownerIds);
+
+  if (error) {
+    throw error;
+  }
+
+  return Object.fromEntries((data || []).map((profile) => [profile.owner_id, profile]));
+}
+
+async function loadPartnerPlannerState({ silent = false } = {}) {
+  const acceptedPairing = getAcceptedPairing();
+  const partnerUserId = acceptedPairing ? getOtherPairingUserId(acceptedPairing) : "";
+
+  if (!partnerUserId) {
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from(SUPABASE_STATE_TABLE)
+      .select("data")
+      .eq("owner_id", partnerUserId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    partnerState = data?.data ? normalizeStateData(data.data) : createPartnerFallbackState();
+
+    if (plannerViewMode === "partner") {
+      state = partnerState;
+      hydrateSettingsUI();
+      renderAll();
+    }
+  } catch (error) {
+    if (!silent) {
+      setPairingMessage(formatSupabaseError(error), true);
+    }
+  }
+}
+
+function createPartnerFallbackState() {
+  return {
+    ...structuredClone(defaultState),
+    activeListSet: state?.activeListSet || DEFAULT_LIST_SET_ID,
+  };
+}
+
+function getOtherPairingUserId(pairing) {
+  if (!pairing) {
+    return "";
+  }
+
+  return pairing.requester_id === supabaseUserId ? pairing.recipient_id : pairing.requester_id;
+}
+
+function getPairingOtherEmail(pairing) {
+  const otherUserId = getOtherPairingUserId(pairing);
+  return pairingContext.profiles[otherUserId]?.email || "partner";
+}
+
+function getPairingDisplayName(pairing) {
+  const preferredName = normalizePairedDisplayName(selfState?.settings?.pairedAccountDisplayName);
+
+  if (preferredName) {
+    return preferredName;
+  }
+
+  const email = getPairingOtherEmail(pairing);
+  const fallbackName = email.includes("@") ? email.split("@")[0] : email || "Partner";
+  return normalizePairedDisplayName(fallbackName) || "Partner";
+}
+
+function togglePairedNameEditor() {
+  if (els.pairedNameEditor.hidden) {
+    showPairedNameEditor();
+    return;
+  }
+
+  hidePairedNameEditor();
+}
+
+function showPairedNameEditor() {
+  const acceptedPairing = getAcceptedPairing();
+
+  if (!acceptedPairing) {
+    return;
+  }
+
+  els.pairedDisplayName.value = getPairingDisplayName(acceptedPairing);
+  els.pairedNameEditor.hidden = false;
+  els.pairedNameToggleBtn.textContent = "Done";
+  els.pairedNameToggleBtn.setAttribute("aria-expanded", "true");
+  els.pairedDisplayName.focus();
+  els.pairedDisplayName.select();
+}
+
+function hidePairedNameEditor() {
+  els.pairedNameEditor.hidden = true;
+  els.pairedNameToggleBtn.textContent = "Change name";
+  els.pairedNameToggleBtn.setAttribute("aria-expanded", "false");
+}
+
+function handlePairedDisplayNameInput() {
+  const nextName = normalizePairedDisplayName(els.pairedDisplayName.value);
+
+  if (selfState.settings.pairedAccountDisplayName === nextName) {
+    return;
+  }
+
+  selfState.settings.pairedAccountDisplayName = nextName;
+  saveSelfState();
+  renderPlannerOwnerSwitcher();
+  renderPairingControls();
+}
+
+async function handlePairingInviteSubmit(event) {
+  event.preventDefault();
+
+  if (!supabaseClient || !supabaseUserId) {
+    setPairingMessage("Sign in before pairing.", true);
+    return;
+  }
+
+  const email = els.pairingEmail.value.trim().toLowerCase();
+
+  if (!email) {
+    setPairingMessage("Enter a registered email address.", true);
+    return;
+  }
+
+  setPairingLoading(true);
+  setPairingMessage("Sending invitation...");
+
+  try {
+    const { error } = await supabaseClient.rpc("invite_planner_pair", {
+      target_email: email,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    els.pairingEmail.value = "";
+    setPairingMessage("Invitation sent.");
+    await refreshPairingContext({ silent: true });
+  } catch (error) {
+    setPairingMessage(formatSupabaseError(error), true);
+  } finally {
+    setPairingLoading(false);
+  }
+}
+
+async function respondToIncomingPairing(shouldAccept) {
+  const incoming = pairingContext.incoming;
+
+  if (!incoming) {
+    return;
+  }
+
+  setPairingLoading(true);
+  setPairingMessage(shouldAccept ? "Accepting invitation..." : "Declining invitation...");
+
+  try {
+    const { error } = await supabaseClient.rpc("respond_planner_pair", {
+      pairing_id: incoming.id,
+      accept_invite: shouldAccept,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    setPairingMessage(shouldAccept ? "Pairing accepted." : "Invitation declined.");
+    await refreshPairingContext({ silent: true });
+  } catch (error) {
+    setPairingMessage(formatSupabaseError(error), true);
+  } finally {
+    setPairingLoading(false);
+  }
+}
+
+async function cancelOutgoingPairing() {
+  const outgoing = pairingContext.outgoing;
+
+  if (!outgoing) {
+    return;
+  }
+
+  await deletePairing(outgoing.id, "Invitation canceled.");
+}
+
+async function removeAcceptedPairing() {
+  const acceptedPairing = pairingContext.accepted;
+
+  if (!acceptedPairing) {
+    return;
+  }
+
+  await deletePairing(acceptedPairing.id, "Pairing removed.");
+}
+
+async function deletePairing(pairingId, successMessage) {
+  setPairingLoading(true);
+  setPairingMessage("Updating pairing...");
+
+  try {
+    const { error } = await supabaseClient.rpc("delete_planner_pair", {
+      pairing_id: pairingId,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (plannerViewMode === "partner") {
+      plannerViewMode = "self";
+      state = selfState;
+      partnerState = null;
+      hydrateSettingsUI();
+      renderAll();
+    }
+
+    setPairingMessage(successMessage);
+    await refreshPairingContext({ silent: true });
+  } catch (error) {
+    setPairingMessage(formatSupabaseError(error), true);
+  } finally {
+    setPairingLoading(false);
+  }
+}
+
+function setPairingLoading(isLoading) {
+  els.pairingEmail.disabled = isLoading;
+  els.pairingInviteBtn.disabled = isLoading;
+  els.pairingAcceptBtn.disabled = isLoading;
+  els.pairingDeclineBtn.disabled = isLoading;
+  els.pairingCancelBtn.disabled = isLoading;
+  els.pairingRemoveBtn.disabled = isLoading;
+  els.pairedNameToggleBtn.disabled = isLoading;
+  els.pairedDisplayName.disabled = isLoading;
+}
+
+function setPairingMessage(message, isError = false) {
+  els.pairingMessage.textContent = message;
+  els.pairingMessage.classList.toggle("error", isError);
+}
+
+function renderPairingControls() {
+  const acceptedPairing = pairingContext.accepted;
+  const incoming = pairingContext.incoming;
+  const outgoing = pairingContext.outgoing;
+
+  els.pairingForm.hidden = Boolean(acceptedPairing || incoming || outgoing);
+  els.pairingIncoming.hidden = !incoming;
+  els.pairingOutgoing.hidden = !outgoing;
+  els.pairingConnected.hidden = !acceptedPairing;
+
+  if (!acceptedPairing) {
+    hidePairedNameEditor();
+  }
+
+  if (incoming) {
+    els.pairingIncomingCopy.textContent = `${getPairingOtherEmail(incoming)} invited you to pair planners.`;
+  }
+
+  if (outgoing) {
+    els.pairingOutgoingCopy.textContent = `Waiting for ${getPairingOtherEmail(outgoing)} to respond.`;
+  }
+
+  if (acceptedPairing) {
+    els.pairingConnectedCopy.textContent = `Paired with ${getPairingDisplayName(acceptedPairing)}.`;
+  }
+}
+
+async function loadSupabaseState() {
+  const { data, error } = await supabaseClient
+    .from(SUPABASE_STATE_TABLE)
+    .select("data")
+    .eq("owner_id", supabaseUserId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.data ? normalizeStateData(data.data) : null;
+}
+
+function hydrateStateUIAfterRemoteLoad() {
+  hydrateSettingsUI();
+  updateRecurringShowDaysVisibility();
+  renderAll();
+}
+
+async function handleAuthSubmit(event) {
+  event.preventDefault();
+
+  if (!supabaseClient) {
+    setAuthMessage("Supabase is still connecting. Try again in a moment.", true);
+    return;
+  }
+
+  const email = els.authEmail.value.trim();
+  const password = els.authPassword.value;
+  const confirmPassword = els.authConfirmPassword.value;
+
+  if (!email || !password) {
+    setAuthMessage("Enter your email and password.", true);
+    return;
+  }
+
+  if (authMode === "sign-up" && password !== confirmPassword) {
+    setAuthMessage("Passwords do not match.", true);
+    return;
+  }
+
+  setAuthLoading(true);
+  setAuthMessage(authMode === "sign-up" ? "Creating account..." : "Signing in...");
+
+  try {
+    const authResult =
+      authMode === "sign-up"
+        ? await supabaseClient.auth.signUp({ email, password })
+        : await supabaseClient.auth.signInWithPassword({ email, password });
+
+    if (authResult.error) {
+      throw authResult.error;
+    }
+
+    if (authMode === "sign-up" && authResult.data.user && Array.isArray(authResult.data.user.identities)) {
+      if (authResult.data.user.identities.length === 0) {
+        setAuthMessage("Could not create account. Email already registered.", true);
+        return;
+      }
+    }
+
+    if (!authResult.data.session?.user) {
+      setAuthMessage(authMode === "sign-up" ? "Confirm your email to create your account." : "Check your email, then sign in.");
+      return;
+    }
+
+    await loadAuthenticatedPlanner(authResult.data.session.user);
+  } catch (error) {
+    setAuthMessage(formatAuthError(error), true);
+  } finally {
+    setAuthLoading(false);
+  }
+}
+
+async function handlePasswordChangeSubmit(event) {
+  event.preventDefault();
+
+  if (els.passwordFields.hidden) {
+    showPasswordFields();
+    return;
+  }
+
+  if (!supabaseClient || !supabaseUserId) {
+    setPasswordMessage("Sign in before changing your password.", true);
+    return;
+  }
+
+  const password = els.newPassword.value;
+  const confirmation = els.confirmNewPassword.value;
+
+  if (!password || !confirmation) {
+    setPasswordMessage("Enter and confirm a new password.", true);
+    return;
+  }
+
+  if (password.length < 6) {
+    setPasswordMessage("Password must be at least 6 characters.", true);
+    return;
+  }
+
+  if (password !== confirmation) {
+    setPasswordMessage("Passwords do not match.", true);
+    return;
+  }
+
+  setPasswordLoading(true);
+  setPasswordMessage("Updating password...");
+
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ password });
+
+    if (error) {
+      throw error;
+    }
+
+    els.newPassword.value = "";
+    els.confirmNewPassword.value = "";
+    setPasswordMessage("Password updated.");
+  } catch (error) {
+    setPasswordMessage(formatSupabaseError(error), true);
+  } finally {
+    setPasswordLoading(false);
+  }
+}
+
+function showPasswordFields() {
+  els.passwordFields.hidden = false;
+  els.passwordToggleBtn.hidden = true;
+  els.passwordToggleBtn.setAttribute("aria-expanded", "true");
+  setPasswordMessage("");
+  els.newPassword.focus();
+}
+
+function resetPasswordSection() {
+  els.passwordFields.hidden = true;
+  els.passwordToggleBtn.hidden = false;
+  els.passwordToggleBtn.setAttribute("aria-expanded", "false");
+  els.newPassword.value = "";
+  els.confirmNewPassword.value = "";
+  setPasswordLoading(false);
+  setPasswordMessage("");
+}
+
+function cancelPasswordChange() {
+  resetPasswordSection();
+  els.passwordToggleBtn.focus();
+}
+
+function setPasswordLoading(isLoading) {
+  els.newPassword.disabled = isLoading;
+  els.confirmNewPassword.disabled = isLoading;
+  els.passwordSubmitBtn.disabled = isLoading;
+  els.passwordCancelBtn.disabled = isLoading;
+}
+
+function setPasswordMessage(message, isError = false) {
+  els.passwordMessage.textContent = message;
+  els.passwordMessage.classList.toggle("error", isError);
+  els.passwordMessage.hidden = !message;
+}
+
+function showDeleteAccountConfirm() {
+  setDeleteAccountMessage("");
+  els.deleteAccountConfirm.hidden = false;
+  els.deleteAccountConfirmInput.value = "";
+  updateDeleteAccountConfirmState();
+  els.deleteAccountConfirmInput.focus();
+}
+
+function hideDeleteAccountConfirm({ restoreFocus = true } = {}) {
+  els.deleteAccountConfirm.hidden = true;
+  els.deleteAccountConfirmInput.value = "";
+  updateDeleteAccountConfirmState();
+
+  if (restoreFocus) {
+    els.deleteAccountStartBtn.focus();
+  }
+}
+
+function updateDeleteAccountConfirmState() {
+  els.deleteAccountConfirmBtn.disabled = els.deleteAccountConfirmInput.value.trim() !== "DELETE";
+}
+
+async function handleDeleteAccountConfirm() {
+  if (els.deleteAccountConfirmBtn.disabled) {
+    return;
+  }
+
+  if (!supabaseClient || !supabaseUserId) {
+    setDeleteAccountMessage("Sign in before deleting your account.", true);
+    return;
+  }
+
+  setDeleteAccountLoading(true);
+  setDeleteAccountMessage("Deleting account...");
+  const deletedStorageKey = activeStorageKey;
+  let didDeleteAccount = false;
+
+  try {
+    const { error } = await supabaseClient.rpc("delete_current_planner_account");
+
+    if (error) {
+      throw error;
+    }
+
+    didDeleteAccount = true;
+    clearDeletedAccountLocalState(deletedStorageKey);
+
+    try {
+      await supabaseClient.auth.signOut({ scope: "local" });
+    } catch {
+      // The auth record is already gone; local UI cleanup below is the important part.
+    }
+
+    showAuthView("Account deleted.");
+  } catch (error) {
+    setDeleteAccountMessage(formatSupabaseError(error), true);
+  } finally {
+    if (!didDeleteAccount) {
+      setDeleteAccountLoading(false);
+    }
+  }
+}
+
+function setDeleteAccountLoading(isLoading) {
+  els.deleteAccountStartBtn.disabled = isLoading;
+  els.deleteAccountConfirmInput.disabled = isLoading;
+  els.deleteAccountCancelBtn.disabled = isLoading;
+  els.deleteAccountConfirmBtn.disabled = isLoading || els.deleteAccountConfirmInput.value.trim() !== "DELETE";
+}
+
+function setDeleteAccountMessage(message, isError = false) {
+  els.deleteAccountMessage.textContent = message;
+  els.deleteAccountMessage.classList.toggle("error", isError);
+}
+
+function clearDeletedAccountLocalState(storageKey) {
+  try {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(AUTH_MIGRATION_KEY);
+  } catch {
+    // Local storage cleanup is best effort; Supabase remains the source of truth.
+  }
+}
+
+async function handleSignOut() {
+  if (!supabaseClient) {
+    showAuthView();
+    return;
+  }
+
+  setSupabaseSyncStatus("syncing");
+
+  try {
+    const { error } = await supabaseClient.auth.signOut();
+
+    if (error) {
+      throw error;
+    }
+
+    showAuthView();
+  } catch (error) {
+    setSupabaseSyncStatus("error", error);
+  }
+}
+
+function setAuthMode(nextMode) {
+  authMode = nextMode === "sign-up" ? "sign-up" : "sign-in";
+  const isSignUp = authMode === "sign-up";
+
+  els.authSignInMode.classList.toggle("active", !isSignUp);
+  els.authSignUpMode.classList.toggle("active", isSignUp);
+  els.authPassword.autocomplete = isSignUp ? "new-password" : "current-password";
+  els.authConfirmPasswordLabel.hidden = !isSignUp;
+  els.authConfirmPassword.hidden = !isSignUp;
+  els.authConfirmPassword.required = isSignUp;
+  if (!isSignUp) {
+    els.authConfirmPassword.value = "";
+  }
+  els.authSubmitBtn.textContent = isSignUp ? "Create account" : "Sign in";
+  setAuthMessage("");
+}
+
+function setAuthLoading(isLoading) {
+  els.authEmail.disabled = isLoading;
+  els.authPassword.disabled = isLoading;
+  els.authConfirmPassword.disabled = isLoading;
+  els.authSubmitBtn.disabled = isLoading;
+  els.authSignInMode.disabled = isLoading;
+  els.authSignUpMode.disabled = isLoading;
+}
+
+function setAuthMessage(message, isError = false) {
+  els.authMessage.textContent = message;
+  els.authMessage.classList.toggle("error", isError);
+}
+
+function showAuthView(message = "", isError = false) {
+  supabaseSyncReady = false;
+  supabaseSyncPending = false;
+  supabaseSyncInFlight = false;
+  supabaseUserId = "";
+  signedInUserEmail = "";
+  activeStorageKey = STORAGE_KEY;
+  state = structuredClone(defaultState);
+  selfState = state;
+  partnerState = null;
+  plannerViewMode = "self";
+  pairingContext = createEmptyPairingContext();
+  closeSettingsModal();
+  renderAll();
+
+  els.appHeader.hidden = true;
+  els.listsView.hidden = true;
+  els.authView.hidden = false;
+  els.authUserLabel.textContent = "";
+  setSupabaseSyncStatus("local");
+  setAuthMessage(message, isError);
+}
+
+function showPlannerView() {
+  els.authView.hidden = true;
+  els.appHeader.hidden = false;
+  els.listsView.hidden = false;
+  els.authUserLabel.textContent = signedInUserEmail;
+  setAuthMessage("");
+  renderPlannerOwnerSwitcher();
+  renderPairingControls();
+}
+
+function isStateNewer(candidateState, currentState) {
+  return savedAtToTime(candidateState?.lastSavedAt) > savedAtToTime(currentState?.lastSavedAt);
+}
+
+function savedAtToTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
 function saveState() {
+  if (isReadOnlyView()) {
+    renderSaveStatus();
+    return;
+  }
+
   state.lastSavedAt = new Date().toISOString();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  selfState = state;
+  persistLocalState();
   renderSaveStatus();
+  queueSupabaseSync();
+}
+
+function saveSelfState() {
+  selfState.lastSavedAt = new Date().toISOString();
+
+  if (!isReadOnlyView()) {
+    state = selfState;
+  }
+
+  persistLocalState(activeStorageKey, selfState);
+  renderSaveStatus();
+  queueSupabaseSync();
 }
 
 function ensureSaveStatusTimestamp() {
   if (!state.lastSavedAt) {
     state.lastSavedAt = new Date().toISOString();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    persistLocalState();
   }
 
   renderSaveStatus();
+}
+
+function persistLocalState(storageKey = activeStorageKey, stateToPersist = state) {
+  localStorage.setItem(storageKey, JSON.stringify(stateToPersist));
 }
 
 function normalizeSavedAt(value) {
@@ -3486,11 +4520,122 @@ function normalizeSavedAt(value) {
   return Number.isNaN(date.getTime()) ? "" : date.toISOString();
 }
 
-function renderSaveStatus() {
-  const savedAt = new Date(state.lastSavedAt || Date.now());
+function queueSupabaseSync() {
+  if (!supabaseSyncReady || !supabaseClient || !supabaseUserId) {
+    return;
+  }
 
-  els.saveStatus.textContent = `Auto-saved at ${savedAt.toLocaleTimeString([], {
+  supabaseSyncPending = true;
+  void flushSupabaseSync();
+}
+
+async function flushSupabaseSync() {
+  if (supabaseSyncInFlight) {
+    return;
+  }
+
+  supabaseSyncInFlight = true;
+
+  try {
+    while (supabaseSyncPending) {
+      supabaseSyncPending = false;
+      setSupabaseSyncStatus("syncing");
+
+      const payload = JSON.parse(JSON.stringify(selfState));
+      const { error } = await supabaseClient.from(SUPABASE_STATE_TABLE).upsert({
+        owner_id: supabaseUserId,
+        data: payload,
+        updated_at: selfState.lastSavedAt || new Date().toISOString(),
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (pendingLegacyMigrationUserId === supabaseUserId) {
+        localStorage.setItem(AUTH_MIGRATION_KEY, supabaseUserId);
+        pendingLegacyMigrationUserId = "";
+      }
+
+      setSupabaseSyncStatus("synced");
+    }
+  } catch (error) {
+    setSupabaseSyncStatus("error", error);
+  } finally {
+    supabaseSyncInFlight = false;
+
+    if (supabaseSyncPending) {
+      void flushSupabaseSync();
+    }
+  }
+}
+
+function setSupabaseSyncStatus(status, error = null) {
+  supabaseSyncStatus = status;
+  supabaseSyncErrorMessage = error ? formatSupabaseError(error) : "";
+
+  if (error) {
+    console.warn("Supabase sync failed", error);
+  }
+
+  renderSaveStatus();
+}
+
+function formatSupabaseError(error) {
+  if (!error) {
+    return "Unknown error";
+  }
+
+  const message =
+    error.message ||
+    error.error_description ||
+    error.error ||
+    error.details ||
+    error.hint ||
+    String(error);
+
+  return String(message).replace(/\s+/g, " ").trim();
+}
+
+function formatAuthError(error) {
+  const message = formatSupabaseError(error);
+
+  if (authMode === "sign-up" && /already|registered|exists/i.test(message)) {
+    return "Could not create account. Email already registered.";
+  }
+
+  return message;
+}
+
+function renderSaveStatus() {
+  const statusState = isReadOnlyView() ? selfState : state;
+  const savedAt = new Date(statusState.lastSavedAt || Date.now());
+  const savedTime = savedAt.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
-  })}`;
+  });
+  els.saveStatus.title = "";
+
+  if (supabaseSyncStatus === "connecting") {
+    els.saveStatus.textContent = "Connecting Supabase...";
+    return;
+  }
+
+  if (supabaseSyncStatus === "syncing") {
+    els.saveStatus.textContent = "Syncing to Supabase...";
+    return;
+  }
+
+  if (supabaseSyncStatus === "synced") {
+    els.saveStatus.textContent = `Auto-saved at ${savedTime}`;
+    return;
+  }
+
+  if (supabaseSyncStatus === "error") {
+    els.saveStatus.textContent = `Supabase error: ${supabaseSyncErrorMessage || "check console"}`;
+    els.saveStatus.title = `Saved locally at ${savedTime}. ${supabaseSyncErrorMessage || ""}`;
+    return;
+  }
+
+  els.saveStatus.textContent = `Auto-saved at ${savedTime}`;
 }
