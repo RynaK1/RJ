@@ -11,6 +11,7 @@ const LIST_TYPES = ["daily", "weekly", "persistent"];
 const RJ_LIST_TYPES = ["persistent"];
 const LIST_SET_IDS = ["schedms", "rj"];
 const DEFAULT_LIST_SET_ID = "schedms";
+const INITIAL_LIST_SET_ID = "rj";
 const MIN_RECURRING_INTERVAL_DAYS = 1;
 const MAX_RECURRING_INTERVAL_DAYS = 7;
 const MAX_TASK_TEXT_LENGTH = 100;
@@ -88,7 +89,7 @@ const defaultState = {
     pairedAccountDisplayName: "",
   },
   lastSavedAt: "",
-  activeListSet: DEFAULT_LIST_SET_ID,
+  activeListSet: INITIAL_LIST_SET_ID,
   listSets: {
     schedms: createDefaultListSetState(),
     rj: createDefaultListSetState(),
@@ -120,6 +121,22 @@ function getListSetLabel(listSetId = state.activeListSet) {
 
 function normalizeListSetId(listSetId) {
   return LIST_SET_IDS.includes(listSetId) ? listSetId : DEFAULT_LIST_SET_ID;
+}
+
+function getVisibleListSetId() {
+  return normalizeListSetId(state?.activeListSet || INITIAL_LIST_SET_ID);
+}
+
+function setPlannerStateListSet(plannerState, listSetId) {
+  if (plannerState) {
+    plannerState.activeListSet = normalizeListSetId(listSetId);
+  }
+
+  return plannerState;
+}
+
+function showInitialListSet() {
+  setPlannerStateListSet(state, INITIAL_LIST_SET_ID);
 }
 
 function isReadOnlyView() {
@@ -288,6 +305,8 @@ const els = {
 initialize();
 
 function initialize() {
+  showInitialListSet();
+  selfState = state;
   populateTimezoneOptions();
   populateRecurringShowDayOptions();
   updateRecurringShowDaysVisibility();
@@ -939,6 +958,7 @@ function switchListSet(listSetId) {
 
 function switchPlannerOwner(owner) {
   const nextOwner = owner === "partner" ? "partner" : "self";
+  const visibleListSetId = getVisibleListSetId();
 
   if (plannerViewMode === nextOwner) {
     return;
@@ -952,6 +972,7 @@ function switchPlannerOwner(owner) {
   closeCustomSelect(openCustomSelect, true);
   hideDeleteConfirm();
   cancelTaskEdit();
+  closeRecurringForm({ immediate: true });
 
   if (plannerViewMode === "self") {
     selfState = state;
@@ -961,6 +982,7 @@ function switchPlannerOwner(owner) {
 
   plannerViewMode = nextOwner;
   state = plannerViewMode === "partner" ? partnerState || createPartnerFallbackState() : selfState;
+  setPlannerStateListSet(state, visibleListSetId);
   hydrateSettingsUI();
   renderAll();
   renderPairingControls();
@@ -1040,8 +1062,14 @@ function setRecurringCreateMode(isActive) {
   }
 }
 
-function closeRecurringForm() {
+function closeRecurringForm({ immediate = false } = {}) {
   setRecurringCreateMode(false);
+
+  if (immediate) {
+    window.clearTimeout(recurringFormCloseTimer);
+    recurringFormCloseTimer = null;
+    els.recurringForm.hidden = true;
+  }
 }
 
 function getTaskInput(listType) {
@@ -3722,6 +3750,7 @@ async function loadAuthenticatedPlanner(user) {
   let shouldUploadState = !remoteState || (!shouldUseRemoteState && hasLocalState && isStateNewer(localState, remoteState));
 
   state = shouldUseRemoteState ? remoteState : localState || structuredClone(defaultState);
+  showInitialListSet();
   if (!state.lastSavedAt) {
     state.lastSavedAt = new Date().toISOString();
     shouldUploadState = true;
@@ -3829,8 +3858,10 @@ async function refreshPairingContext({ silent = false } = {}) {
     pairingContext = context;
 
     if (!context.accepted && plannerViewMode === "partner") {
+      const visibleListSetId = getVisibleListSetId();
       plannerViewMode = "self";
       state = selfState;
+      setPlannerStateListSet(state, visibleListSetId);
       partnerState = null;
     }
 
@@ -3888,10 +3919,13 @@ async function loadPartnerPlannerState({ silent = false } = {}) {
       throw error;
     }
 
+    const visibleListSetId = getVisibleListSetId();
     partnerState = data?.data ? normalizeStateData(data.data) : createPartnerFallbackState();
+    setPlannerStateListSet(partnerState, visibleListSetId);
 
     if (plannerViewMode === "partner") {
       state = partnerState;
+      setPlannerStateListSet(state, visibleListSetId);
       hydrateSettingsUI();
       renderAll();
     }
@@ -3905,7 +3939,7 @@ async function loadPartnerPlannerState({ silent = false } = {}) {
 function createPartnerFallbackState() {
   return {
     ...structuredClone(defaultState),
-    activeListSet: state?.activeListSet || DEFAULT_LIST_SET_ID,
+    activeListSet: getVisibleListSetId(),
   };
 }
 
@@ -4077,8 +4111,10 @@ async function deletePairing(pairingId, successMessage) {
     }
 
     if (plannerViewMode === "partner") {
+      const visibleListSetId = getVisibleListSetId();
       plannerViewMode = "self";
       state = selfState;
+      setPlannerStateListSet(state, visibleListSetId);
       partnerState = null;
       hydrateSettingsUI();
       renderAll();
