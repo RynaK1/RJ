@@ -1019,7 +1019,8 @@ input:focus-visible {
 }
 
 .app.rj-mode .add-task-form,
-.add-task-form.edit-morphing {
+.add-task-form.edit-morphing,
+.schedms-add-form.edit-morphing {
   flex-wrap: nowrap;
 }
 
@@ -1051,10 +1052,32 @@ input:focus-visible {
   box-shadow: inset 0 0 0 1px rgba(238, 241, 232, 0.3), 0 8px 16px rgba(55, 72, 54, 0.1);
   font-size: 1.45rem;
   font-weight: 900;
+  position: relative;
 }
 
-.add-task-form.editing-task .add-task-submit-btn {
+.add-task-submit-btn::before {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: block;
+  width: 1.28rem;
+  height: 1.28rem;
+  background: currentColor;
+  content: "";
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17 6.5V11c0 3.31-2.69 6-6 6H6' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M9.5 13.5 6 17l3.5 3.5' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17 6.5V11c0 3.31-2.69 6-6 6H6' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M9.5 13.5 6 17l3.5 3.5' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.add-task-form.editing-task .add-task-submit-btn,
+.schedms-add-form.editing-task .add-task-submit-btn {
   font-size: 1.18rem;
+}
+
+.add-task-form.editing-task .add-task-submit-btn::before,
+.schedms-add-form.editing-task .add-task-submit-btn::before {
+  display: none;
 }
 
 .edit-cancel-btn {
@@ -1089,7 +1112,8 @@ input:focus-visible {
   display: none;
 }
 
-.add-task-form.editing-task .edit-cancel-btn {
+.add-task-form.editing-task .edit-cancel-btn,
+.schedms-add-form.editing-task .edit-cancel-btn {
   flex-basis: 2.45rem;
   width: 2.45rem;
   opacity: 1;
@@ -1098,7 +1122,8 @@ input:focus-visible {
   border-width: 1px;
 }
 
-.add-task-form:not(.editing-task) .edit-cancel-btn {
+.add-task-form:not(.editing-task) .edit-cancel-btn,
+.schedms-add-form:not(.editing-task) .edit-cancel-btn {
   flex-basis: 0;
   width: 0;
   border-width: 0;
@@ -1166,6 +1191,7 @@ input:focus-visible {
 }
 
 .add-task-form.editing-task input,
+.schedms-add-form.editing-task input,
 input.edit-morph-target {
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px rgba(111, 156, 134, 0.16);
@@ -3917,10 +3943,42 @@ select {
 }
 
 .schedms-add-form {
+  --schedms-edit-extra-width: calc(2.45rem + 0.55rem);
   display: grid;
-  grid-template-columns: minmax(15rem, 1fr) minmax(7rem, 9rem) 2.45rem;
+  grid-template-columns: minmax(15rem, 1fr) 2.45rem minmax(7rem, 9rem);
   gap: 0.55rem;
   align-items: end;
+}
+
+.schedms-add-form.editing-task {
+  width: calc(100% + var(--schedms-edit-extra-width));
+  grid-template-columns: minmax(15rem, 1fr) 2.45rem 2.45rem minmax(7rem, 9rem);
+}
+
+.schedms-add-form input[type="text"] {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.schedms-add-form .add-task-submit-btn {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.schedms-add-form .edit-cancel-btn {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.schedms-add-form > select,
+.schedms-add-form > .custom-select {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.schedms-add-form.editing-task > select,
+.schedms-add-form.editing-task > .custom-select {
+  grid-column: 4;
 }
 
 .schedms-add-form input,
@@ -3962,7 +4020,8 @@ select {
   background-color: var(--control-hover);
 }
 
-.schedms-add-form .add-task-submit-btn {
+.schedms-add-form .add-task-submit-btn,
+.schedms-add-form .edit-cancel-btn {
   width: 2.45rem;
   min-height: 2.45rem;
   margin: 0;
@@ -4069,17 +4128,36 @@ select {
     grid-template-columns: minmax(0, 1fr) 2.45rem;
   }
 
-  .schedms-add-form input[type="text"] {
-    grid-column: 1 / -1;
+  .schedms-add-form.editing-task {
+    width: calc(100% + var(--schedms-edit-extra-width));
+    grid-template-columns: minmax(0, 1fr) 2.45rem 2.45rem;
   }
 
-  .schedms-add-form select {
+  .schedms-add-form input[type="text"] {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .schedms-add-form select,
+  .schedms-add-form .custom-select {
+    grid-column: 1 / -1;
+    grid-row: 2;
     min-width: 0;
   }
 
   .schedms-add-form .add-task-submit-btn {
     grid-column: 2;
-    grid-row: 2;
+    grid-row: 1;
+  }
+
+  .schedms-add-form.editing-task .add-task-submit-btn {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .schedms-add-form.editing-task .edit-cancel-btn {
+    grid-column: 3;
+    grid-row: 1;
   }
 }
 

@@ -16,7 +16,7 @@ const MIN_RECURRING_INTERVAL_DAYS = 1;
 const MAX_RECURRING_INTERVAL_DAYS = 7;
 const MAX_TASK_TEXT_LENGTH = 100;
 const MAX_PAIRED_DISPLAY_NAME_LENGTH = 15;
-const RJ_TASK_GROUPS = ["recurring-open", "one-time-open", "one-time-done", "recurring-done"];
+const RJ_TASK_GROUPS = ["recurring-open", "one-time-open", "done"];
 const RJ_TASK_OPTION_ONE_TIME = "one-time";
 const RJ_TASK_OPTION_DAILY = "daily";
 const RJ_TASK_OPTION_WEEKLY = "weekly";
@@ -29,7 +29,7 @@ const LIST_LABELS = {
   weekly: "Weekly",
   persistent: "To-Do",
 };
-const ADD_TASK_SYMBOL = "+";
+const ADD_TASK_SYMBOL = "";
 const SAVE_TASK_SYMBOL = "✓";
 const DEFAULT_TIMEZONE_OFFSET = "-08:00";
 const SCHEDMS_WEEKLY_RESET_DAY_UTC = 4;
@@ -434,7 +434,9 @@ function wireEvents() {
   });
 
   els.cancelEditButtons.forEach((button) => {
-    button.addEventListener("click", () => cancelTaskEdit(button.dataset.cancelEdit));
+    button.addEventListener("click", () =>
+      cancelTaskEdit(button.dataset.cancelEdit === "schedms" ? null : button.dataset.cancelEdit)
+    );
   });
 
   els.addForms.forEach((form) => {
@@ -709,9 +711,15 @@ function handleSchedmsAddSubmit(event) {
 
   const text = els.schedmsInput.value.trim().slice(0, MAX_TASK_TEXT_LENGTH);
   const listType = normalizeSchedmsTargetList(els.schedmsTargetList.value);
+  const isEditing = editState?.listSetId === "schedms";
 
   if (text.length < 1) {
     setSchedmsAddError("Task must be at least 1 character.");
+    return;
+  }
+
+  if (isEditing) {
+    updateSchedmsEditedTask(text, listType);
     return;
   }
 
@@ -731,6 +739,47 @@ function handleSchedmsAddSubmit(event) {
   saveState();
   renderAll();
   els.schedmsInput.focus();
+}
+
+function updateSchedmsEditedTask(text, nextListType) {
+  if (isReadOnlyView() || editState?.listSetId !== "schedms") {
+    return;
+  }
+
+  const activeSet = getActiveListSet();
+  const previousListType = editState.listType;
+  const tasks = activeSet.tasks[previousListType];
+  const taskIndex = tasks.findIndex((item) => item.id === editState.taskId);
+
+  if (taskIndex < 0) {
+    cancelTaskEdit(previousListType);
+    return;
+  }
+
+  const normalizedNextListType = normalizeSchedmsTargetList(nextListType);
+  const beforePositions = new Map([[previousListType, captureTaskPositions(previousListType)]]);
+
+  if (normalizedNextListType !== previousListType) {
+    beforePositions.set(normalizedNextListType, captureTaskPositions(normalizedNextListType));
+  }
+
+  const task = tasks[taskIndex];
+  task.text = text;
+
+  if (normalizedNextListType !== previousListType) {
+    tasks.splice(taskIndex, 1);
+    activeSet.tasks[normalizedNextListType].push(task);
+  }
+
+  finishTaskEdit(normalizedNextListType);
+  setSchedmsAddError("");
+  saveState();
+  renderAll();
+  animateListReflow(previousListType, beforePositions.get(previousListType));
+
+  if (normalizedNextListType !== previousListType) {
+    animateListReflow(normalizedNextListType, beforePositions.get(normalizedNextListType));
+  }
 }
 
 function normalizeSchedmsTargetList(listType) {
@@ -1073,15 +1122,27 @@ function closeRecurringForm({ immediate = false } = {}) {
 }
 
 function getTaskInput(listType) {
-  return els.lists[listType].form.querySelector("input");
+  return getTaskEditForm(listType).querySelector("input");
 }
 
 function getTaskSubmitButton(listType) {
-  return els.lists[listType].form.querySelector(".add-task-submit-btn");
+  return getTaskEditForm(listType).querySelector(".add-task-submit-btn");
 }
 
 function getTaskEditCancelButton(listType) {
-  return els.lists[listType].form.querySelector("[data-cancel-edit]");
+  return getTaskEditForm(listType).querySelector("[data-cancel-edit]");
+}
+
+function getTaskEditForm(listType) {
+  return usesSchedmsEditBar() ? els.schedmsAddForm : els.lists[listType].form;
+}
+
+function usesSchedmsEditBar() {
+  return state.activeListSet === "schedms";
+}
+
+function getTaskEditSurfaceKey(listType) {
+  return usesSchedmsEditBar() ? "schedms" : listType;
 }
 
 function isEditingTask(listType, taskId = null) {
@@ -1109,6 +1170,11 @@ function updateTaskInputPlaceholder(listType) {
     return;
   }
 
+  if (usesSchedmsEditBar()) {
+    input.placeholder = "Add task";
+    return;
+  }
+
   input.placeholder =
     listType === "persistent" && isTaskOptionsOpenForList(listType)
       ? "Add to-do item with options"
@@ -1116,12 +1182,13 @@ function updateTaskInputPlaceholder(listType) {
 }
 
 function setTaskFormEditingState(listType, isEditing) {
-  const form = els.lists[listType].form;
+  const form = getTaskEditForm(listType);
   const submitButton = getTaskSubmitButton(listType);
   const cancelButton = getTaskEditCancelButton(listType);
   const taskLabel = getListTypeTaskLabel(listType);
+  const editSurfaceKey = getTaskEditSurfaceKey(listType);
 
-  clearEditCancelHideTimer(listType);
+  clearEditCancelHideTimer(editSurfaceKey);
   cancelButton.hidden = false;
   cancelButton.disabled = !isEditing;
   cancelButton.setAttribute("aria-hidden", String(!isEditing));
@@ -1132,8 +1199,12 @@ function setTaskFormEditingState(listType, isEditing) {
   submitButton.title = isEditing ? "Save task" : "Add task";
   updateTaskInputPlaceholder(listType);
 
+  if (usesSchedmsEditBar()) {
+    syncCustomSelect(els.schedmsTargetList);
+  }
+
   if (!isEditing) {
-    hideEditCancelButtonAfterCollapse(listType, cancelButton);
+    hideEditCancelButtonAfterCollapse(editSurfaceKey, cancelButton);
   }
 }
 
@@ -1157,12 +1228,20 @@ function hideEditCancelButtonAfterCollapse(listType, cancelButton) {
   const timerId = window.setTimeout(() => {
     editCancelHideTimers.delete(listType);
 
-    if (!isEditingTask(listType)) {
+    if (!isTaskEditSurfaceActive(listType)) {
       cancelButton.hidden = true;
     }
   }, EDIT_CANCEL_MOTION_MS + 30);
 
   editCancelHideTimers.set(listType, timerId);
+}
+
+function isTaskEditSurfaceActive(editSurfaceKey) {
+  if (editSurfaceKey === "schedms") {
+    return editState?.listSetId === "schedms";
+  }
+
+  return isEditingTask(editSurfaceKey);
 }
 
 function prepareTaskEditMode(listType, task) {
@@ -1180,6 +1259,11 @@ function prepareTaskEditMode(listType, task) {
 
   const input = getTaskInput(listType);
   input.value = task.text.slice(0, MAX_TASK_TEXT_LENGTH);
+
+  if (usesSchedmsEditBar()) {
+    els.schedmsTargetList.value = listType;
+    syncCustomSelect(els.schedmsTargetList);
+  }
 
   if (usesRecurringTaskGrouping(listType)) {
     setRecurringCreateMode(isRecurringTask(task) || isScheduledOneTimeTask(task));
@@ -1225,7 +1309,7 @@ function finishTaskEdit(listType = editState?.listType) {
   getTaskInput(listType).value = "";
   resetRecurringShowDayControls();
 
-  if (listType === "persistent") {
+  if (usesRecurringTaskGrouping(listType)) {
     closeRecurringForm();
   }
 
@@ -1240,6 +1324,7 @@ function cancelTaskEdit(listType = null) {
   const editedListType = editState.listType;
   finishTaskEdit(editedListType);
   setFormError(editedListType, "");
+  setSchedmsAddError("");
   setRecurringError("");
   renderAll();
 }
@@ -1608,7 +1693,7 @@ function renderActiveLayout() {
   document.body.classList.toggle("rj-mode", isRjMode);
   els.app.classList.toggle("rj-mode", isRjMode);
   els.app.classList.toggle("partner-view", isReadOnly);
-  els.schedmsQuickAdd.hidden = isReadOnly || isRjMode || Boolean(editState && editState.listSetId === "schedms");
+  els.schedmsQuickAdd.hidden = isReadOnly || isRjMode;
   els.rjProgress.hidden = !isRjMode;
   els.recurringTools.hidden = !isRjMode;
   els.recurringPanel.hidden = !isRjMode;
@@ -1819,16 +1904,6 @@ function renderList(listType) {
         renderAll();
         animateListReflow(listType, beforePositions);
       };
-
-      if (nextDone && usesRecurringTaskGrouping(listType) && isRecurringTask(task)) {
-        checkbox.checked = true;
-        checkbox.disabled = true;
-        deleteBtn.disabled = true;
-        editBtn.disabled = true;
-        li.draggable = false;
-        runRecurringCompleteAnimation(li, commitDoneChange);
-        return;
-      }
 
       commitDoneChange();
     };
@@ -2158,7 +2233,7 @@ function shouldShowListForm(listType) {
     return listType === "persistent";
   }
 
-  return isEditingTask(listType);
+  return false;
 }
 
 function orderTasksForList(listType, tasks) {
@@ -2172,7 +2247,7 @@ function orderTasksForList(listType, tasks) {
 function orderRjPersistentTasks(tasks) {
   return RJ_TASK_GROUPS.flatMap((group) => {
     const groupTasks = tasks.filter((task) => getRjTaskGroup(task) === group);
-    return group.endsWith("-done") ? sortTasksByCompletionOrder(groupTasks) : groupTasks;
+    return group === "done" ? sortTasksByCompletionOrder(groupTasks) : groupTasks;
   });
 }
 
@@ -2193,7 +2268,13 @@ function isTaskVisibleInList(listType, task) {
     return true;
   }
 
-  const wasRestoredToday = normalizeDateId(task.lastRestoredDate) === dailyPeriodId(new Date());
+  const todayId = dailyPeriodId(new Date());
+
+  if (task.done) {
+    return normalizeDateId(task.lastCompletedDate) === todayId;
+  }
+
+  const wasRestoredToday = normalizeDateId(task.lastRestoredDate) === todayId;
 
   return !task.done && (wasRestoredToday || doesRecurringTaskShowToday(task));
 }
@@ -2293,11 +2374,11 @@ function backfillCompletionOrders(targetState) {
 }
 
 function getRjTaskGroup(task) {
-  if (isRecurringTask(task)) {
-    return task.done ? "recurring-done" : "recurring-open";
+  if (task.done) {
+    return "done";
   }
 
-  return task.done ? "one-time-done" : "one-time-open";
+  return isRecurringTask(task) ? "recurring-open" : "one-time-open";
 }
 
 function orderTasksByDone(tasks) {
@@ -2317,13 +2398,18 @@ function moveTaskAfterDoneChange(listType, taskId, done) {
   setTaskCompletionState(task, done);
 
   if (usesRecurringTaskGrouping(listType) && isRecurringTask(task)) {
+    const todayId = dailyPeriodId(new Date());
+
     if (done) {
-      task.lastCompletedDate = dailyPeriodId(new Date());
-      task.recurringStartDate = normalizeDateId(task.recurringStartDate) || task.lastCompletedDate;
-      task.nextDueDate = normalizeDateId(task.nextDueDate) || addDaysToDateId(task.recurringStartDate, task.intervalDays);
+      const currentNextDueDate = normalizeDateId(task.nextDueDate);
+      task.lastCompletedDate = todayId;
+      task.recurringStartDate = normalizeDateId(task.recurringStartDate) || todayId;
+      task.nextDueDate =
+        currentNextDueDate && currentNextDueDate > todayId
+          ? currentNextDueDate
+          : addDaysToDateId(todayId, task.intervalDays);
       delete task.lastRestoredDate;
     } else {
-      const todayId = dailyPeriodId(new Date());
       task.recurringStartDate = todayId;
       task.lastRestoredDate = todayId;
       task.nextDueDate = addDaysToDateId(task.recurringStartDate, task.intervalDays);
@@ -2431,7 +2517,7 @@ function runRecurringCompleteAnimation(itemEl, onDone) {
 function runTaskEditAnimation(itemEl, listType, task, onDone) {
   const targetInput = getTaskInput(listType);
   const sourceCopy = itemEl.querySelector(".task-copy");
-  const formEl = els.lists[listType].form;
+  const formEl = getTaskEditForm(listType);
 
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !targetInput || !sourceCopy) {
     prepareTaskEditMode(listType, task);
@@ -2656,7 +2742,7 @@ function expandEditCancelButtonForMeasurement(cancelButton) {
 }
 
 function animateTaskFormControlsForEdit(listType, startInputWidth, endInputWidth, endCancelWidth, endCancelMarginLeft) {
-  const form = els.lists[listType].form;
+  const form = getTaskEditForm(listType);
   const input = getTaskInput(listType);
   const cancelButton = getTaskEditCancelButton(listType);
   const previousFlex = input.style.flex;
@@ -3121,7 +3207,12 @@ function refreshRecurringTasksIfNeeded() {
       return task;
     }
 
-    if (task.nextDueDate && task.nextDueDate > todayId) {
+    const lastCompletedDate = normalizeDateId(task.lastCompletedDate);
+    const nextDueDate = normalizeDateId(task.nextDueDate);
+    const shouldClearExpiredCompletion = task.done && lastCompletedDate !== todayId;
+    const shouldRefreshDueDate = !nextDueDate || nextDueDate <= todayId;
+
+    if (!shouldClearExpiredCompletion && !shouldRefreshDueDate) {
       return task;
     }
 
@@ -3129,13 +3220,23 @@ function refreshRecurringTasksIfNeeded() {
 
     const refreshedTask = {
       ...task,
-      done: false,
-      recurringStartDate: todayId,
-      lastCompletedDate: "",
-      nextDueDate: addDaysToDateId(todayId, task.intervalDays),
     };
 
-    delete refreshedTask.completedOrder;
+    if (shouldRefreshDueDate) {
+      refreshedTask.recurringStartDate = todayId;
+      refreshedTask.nextDueDate = addDaysToDateId(todayId, task.intervalDays);
+    }
+
+    if (shouldClearExpiredCompletion) {
+      refreshedTask.done = false;
+      refreshedTask.lastCompletedDate = "";
+      delete refreshedTask.completedOrder;
+      delete refreshedTask.lastRestoredDate;
+    } else if (!refreshedTask.done) {
+      refreshedTask.lastCompletedDate = "";
+      delete refreshedTask.completedOrder;
+    }
+
     return refreshedTask;
   });
 
