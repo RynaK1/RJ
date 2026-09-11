@@ -181,6 +181,8 @@ let completionAudioContext = null;
 let openCustomSelect = null;
 let supabaseClient = null;
 let supabaseUserId = "";
+let personalChangesUnsaved = false;
+let sharedChangesUnsaved = false;
 let supabaseSyncReady = false;
 let supabaseSyncPending = false;
 let supabaseSyncInFlight = false;
@@ -370,6 +372,7 @@ function initialize() {
     saveState();
   }
   wireEvents();
+  wireMobileTaskDismissal();
   window.setInterval(tickResets, 15000);
   renderAll();
   ensureSaveStatusTimestamp();

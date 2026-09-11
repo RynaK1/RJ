@@ -279,6 +279,8 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
       persistChange();
     };
 
+    wireMobileTaskGesture(item, checkbox, setTaskDone);
+
     item.addEventListener("pointerdown", (event) => {
       if (
         event.button !== 0 ||
@@ -1015,6 +1017,8 @@ function renderList(listType) {
       commitDoneChange();
     };
 
+    wireMobileTaskGesture(li, checkbox, setTaskDone);
+
     li.addEventListener("pointerdown", (event) => {
       if (
         event.button !== 0 ||
@@ -1306,4 +1310,74 @@ function renderRjSchedulePanels() {
   renderRecurringPanel();
   renderSharedRecurringPanel([...sharedRjState.tasks.todo, ...sharedRjState.tasks.schedule]);
   renderPartnerRecurringPanel(partnerState?.listSets?.rj?.tasks?.persistent || []);
+}
+
+// Mobile taps expose controls; deliberate horizontal swipes toggle completion.
+function isMobileTaskView() {
+  return window.matchMedia("(max-width: 900px)").matches;
+}
+
+function dismissMobileTaskActions(except = null) {
+  document.querySelectorAll(".task-item.actions-visible, .task-item.actions-open").forEach((item) => {
+    if (item === except) return;
+    item.classList.remove("actions-visible", "actions-open");
+    item.querySelector(".task-actions-toggle")?.setAttribute("aria-expanded", "false");
+  });
+}
+
+function wireMobileTaskGesture(item, checkbox, setTaskDone) {
+  let start = null;
+  let scrolled = false;
+  const isControl = (event) => event.target.closest("button, a, select, textarea");
+  const clear = () => { start = null; item.classList.remove("swipe-ready"); };
+  item.addEventListener("dragstart", (event) => {
+    if (isMobileTaskView()) { event.preventDefault(); event.stopImmediatePropagation(); }
+  }, true);
+  item.addEventListener("pointerdown", (event) => {
+    if (!isMobileTaskView() || isControl(event) || checkbox.disabled || event.button !== 0) return;
+    event.stopImmediatePropagation();
+    start = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    scrolled = false;
+    if (event.isTrusted) item.setPointerCapture?.(event.pointerId);
+  }, true);
+  item.addEventListener("pointermove", (event) => {
+    if (!start || start.id !== event.pointerId) return;
+    const dx = Math.abs(event.clientX - start.x);
+    const dy = Math.abs(event.clientY - start.y);
+    if (dy > 12 && dy > dx) { scrolled = true; dismissMobileTaskActions(); }
+    item.classList.toggle("swipe-ready", !scrolled && dx >= Math.max(72, Math.min(120, item.clientWidth * 0.25)) && dx > dy * 2);
+  });
+  item.addEventListener("pointerup", (event) => {
+    if (!isMobileTaskView() || !start || start.id !== event.pointerId) return;
+    event.stopImmediatePropagation();
+    const dx = Math.abs(event.clientX - start.x);
+    const dy = Math.abs(event.clientY - start.y);
+    const threshold = Math.max(72, Math.min(120, item.clientWidth * 0.25));
+    clear();
+    if (!scrolled && dx >= threshold && dx > dy * 2) {
+      event.preventDefault();
+      dismissMobileTaskActions();
+      setTaskDone(!checkbox.checked);
+    } else if (dx <= 8 && dy <= 8 && !scrolled) {
+      dismissMobileTaskActions(item);
+      item.classList.add("actions-visible");
+    }
+  }, true);
+  item.addEventListener("pointercancel", () => { clear(); dismissMobileTaskActions(); });
+  item.addEventListener("click", (event) => {
+    if (!isMobileTaskView() || isControl(event)) return;
+    // Keep keyboard checkbox activation available; suppress touch label toggles.
+    if (event.detail === 0 && event.target === checkbox) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+}
+
+function wireMobileTaskDismissal() {
+  document.addEventListener("pointerdown", (event) => {
+    if (isMobileTaskView()) dismissMobileTaskActions(event.target.closest(".task-item"));
+  }, true);
+  document.addEventListener("scroll", () => {
+    if (isMobileTaskView()) dismissMobileTaskActions();
+  }, true);
 }

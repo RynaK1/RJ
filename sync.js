@@ -54,6 +54,8 @@ async function importSupabaseClient() {
 }
 
 async function loadAuthenticatedPlanner(user) {
+  personalChangesUnsaved = false;
+  sharedChangesUnsaved = false;
   setSupabaseSyncStatus("connecting");
   supabaseUserId = user.id;
   signedInUserEmail = user.email || "Signed in";
@@ -98,6 +100,7 @@ async function loadAuthenticatedPlanner(user) {
   showPlannerView();
 
   supabaseSyncReady = true;
+  personalChangesUnsaved = shouldUploadState || shouldMigrateLegacyState;
   setSupabaseSyncStatus("synced");
 
   if (getAcceptedPairing() && sharedRjState.lastSavedAt) {
@@ -908,6 +911,7 @@ function saveState() {
     return;
   }
 
+  personalChangesUnsaved = true;
   state.lastSavedAt = new Date().toISOString();
   selfState = state;
   persistLocalState();
@@ -916,6 +920,7 @@ function saveState() {
 }
 
 function saveSelfState() {
+  personalChangesUnsaved = true;
   selfState.lastSavedAt = new Date().toISOString();
 
   if (!isReadOnlyView()) {
@@ -934,6 +939,7 @@ function saveSharedRjState() {
     return;
   }
 
+  sharedChangesUnsaved = true;
   sharedRjPairingId = acceptedPairing.id;
   sharedRjState.lastSavedAt = new Date().toISOString();
   persistSharedRjState();
@@ -969,6 +975,8 @@ function normalizeSavedAt(value) {
 }
 
 function queueSupabaseSync() {
+  personalChangesUnsaved = true;
+  renderSaveStatus();
   if (!supabaseSyncReady || !supabaseClient || !supabaseUserId) {
     return;
   }
@@ -978,6 +986,8 @@ function queueSupabaseSync() {
 }
 
 function queueSharedRjSync() {
+  sharedChangesUnsaved = true;
+  renderSaveStatus();
   if (
     !supabaseSyncReady ||
     !supabaseClient ||
@@ -1015,6 +1025,7 @@ async function flushSharedRjSync() {
         throw error;
       }
 
+      sharedChangesUnsaved = sharedRjSyncPending;
       setSupabaseSyncStatus("synced");
     }
   } catch (error) {
@@ -1030,6 +1041,7 @@ async function flushSharedRjSync() {
     setSupabaseSyncStatus("error", error);
   } finally {
     sharedRjSyncInFlight = false;
+    renderSaveStatus();
   }
 }
 
@@ -1061,12 +1073,14 @@ async function flushSupabaseSync() {
         pendingLegacyMigrationUserId = "";
       }
 
+      personalChangesUnsaved = supabaseSyncPending;
       setSupabaseSyncStatus("synced");
     }
   } catch (error) {
     setSupabaseSyncStatus("error", error);
   } finally {
     supabaseSyncInFlight = false;
+    renderSaveStatus();
 
     if (supabaseSyncPending) {
       void flushSupabaseSync();
@@ -1121,40 +1135,16 @@ function formatAuthError(error) {
 }
 
 function renderSaveStatus() {
-  const statusState = isReadOnlyView() ? selfState : state;
-  const savedAt = new Date(statusState.lastSavedAt || Date.now());
-  const savedTime = savedAt.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  els.saveStatus.title = "";
-
-  if (supabaseSyncStatus === "connecting") {
-    els.saveStatus.textContent = "Connecting Supabase...";
-    return;
-  }
-
-  if (supabaseSyncStatus === "syncing") {
-    els.saveStatus.textContent = "Syncing to Supabase...";
-    return;
-  }
-
-  if (sharedRjRemoteNotice && getAcceptedPairing()) {
-    els.saveStatus.textContent = "Shared lists saved locally";
-    els.saveStatus.title = `${sharedRjRemoteNotice} Run supabase-setup.sql to enable paired sync.`;
-    return;
-  }
-
-  if (supabaseSyncStatus === "synced") {
-    els.saveStatus.textContent = `Auto-saved at ${savedTime}`;
-    return;
-  }
-
-  if (supabaseSyncStatus === "error") {
-    els.saveStatus.textContent = `Supabase error: ${supabaseSyncErrorMessage || "check console"}`;
-    els.saveStatus.title = `Saved locally at ${savedTime}. ${supabaseSyncErrorMessage || ""}`;
-    return;
-  }
-
-  els.saveStatus.textContent = `Auto-saved at ${savedTime}`;
+  const sharedActive = Boolean(getAcceptedPairing());
+  const saved = supabaseSyncStatus === "synced" && !personalChangesUnsaved &&
+    !supabaseSyncPending && !supabaseSyncInFlight &&
+    (!sharedActive || (!sharedChangesUnsaved && !sharedRjSyncPending &&
+      !sharedRjSyncInFlight && !sharedRjRemoteNotice));
+  const label = saved ? "All changes saved" : "Changes not fully saved";
+  els.saveStatus.textContent = saved ? "\u2713" : "\u00d7";
+  els.saveStatus.classList.toggle("all-saved", saved);
+  els.saveStatus.classList.toggle("not-saved", !saved);
+  els.saveStatus.setAttribute("role", "status");
+  els.saveStatus.setAttribute("aria-label", label);
+  els.saveStatus.title = saved ? label : `${label}${supabaseSyncErrorMessage ? ": " + supabaseSyncErrorMessage : ""}`;
 }
