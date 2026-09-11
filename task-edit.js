@@ -188,6 +188,7 @@ function setTaskFormEditingState(listType, isEditing) {
 }
 
 function prepareTaskEditMode(listType, task, editContext = {}) {
+  if (isMobileTaskView()) return;
   const taskId = task.id;
 
   if (editState && !isEditingTask(listType, taskId)) {
@@ -290,4 +291,3 @@ function isTaskEditInteraction(event) {
     (surface) => surface && (eventPath.includes(surface) || surface.contains(event.target))
   );
 }
-

@@ -4705,11 +4705,14 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   .recurring-toggle-btn .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .rj-owner-toggle { grid-column: 3; grid-row: 2; justify-self: end; }
   .task-item { touch-action: pan-y pinch-zoom; }
-  .task-item.swipe-ready { outline: 2px solid #8affaa; outline-offset: -2px; }
   .task-item .task-actions,
-  .app.rj-mode .irl-card .task-item .task-actions { display: none; }
-  .task-item.actions-visible .task-actions,
-  .app.rj-mode .irl-card .task-item.actions-visible .task-actions { display: flex; }
+  .app.rj-mode .irl-card .task-item .task-actions { display: flex; }
+  .task-item .task-actions > .edit-btn,
+  .task-item .task-actions > .task-actions-toggle,
+  .app.rj-mode .irl-card .task-item .task-actions > .edit-btn,
+  .app.rj-mode .irl-card .task-item .task-actions > .task-actions-toggle { display: none !important; }
+  .task-item .task-actions > .delete-btn,
+  .app.rj-mode .irl-card .task-item .task-actions > .delete-btn { display: inline-grid; min-width: 2.75rem; min-height: 2.75rem; }
 }
 
 /* The hidden attribute always wins over mode and responsive layout rules. */

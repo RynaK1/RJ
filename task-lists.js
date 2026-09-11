@@ -1312,7 +1312,7 @@ function renderRjSchedulePanels() {
   renderPartnerRecurringPanel(partnerState?.listSets?.rj?.tasks?.persistent || []);
 }
 
-// Mobile taps expose controls; deliberate horizontal swipes toggle completion.
+// Mobile taps toggle completion; movement is reserved for scrolling.
 function isMobileTaskView() {
   return window.matchMedia("(max-width: 900px)").matches;
 }
@@ -1329,7 +1329,7 @@ function wireMobileTaskGesture(item, checkbox, setTaskDone) {
   let start = null;
   let scrolled = false;
   const isControl = (event) => event.target.closest("button, a, select, textarea");
-  const clear = () => { start = null; item.classList.remove("swipe-ready"); };
+  const clear = () => { start = null; };
   item.addEventListener("dragstart", (event) => {
     if (isMobileTaskView()) { event.preventDefault(); event.stopImmediatePropagation(); }
   }, true);
@@ -1344,23 +1344,18 @@ function wireMobileTaskGesture(item, checkbox, setTaskDone) {
     if (!start || start.id !== event.pointerId) return;
     const dx = Math.abs(event.clientX - start.x);
     const dy = Math.abs(event.clientY - start.y);
-    if (dy > 12 && dy > dx) { scrolled = true; dismissMobileTaskActions(); }
-    item.classList.toggle("swipe-ready", !scrolled && dx >= Math.max(72, Math.min(120, item.clientWidth * 0.25)) && dx > dy * 2);
+    if (dx > 8 || dy > 8) scrolled = true;
   });
   item.addEventListener("pointerup", (event) => {
     if (!isMobileTaskView() || !start || start.id !== event.pointerId) return;
     event.stopImmediatePropagation();
     const dx = Math.abs(event.clientX - start.x);
     const dy = Math.abs(event.clientY - start.y);
-    const threshold = Math.max(72, Math.min(120, item.clientWidth * 0.25));
     clear();
-    if (!scrolled && dx >= threshold && dx > dy * 2) {
+    if (!scrolled && dx <= 8 && dy <= 8) {
       event.preventDefault();
       dismissMobileTaskActions();
       setTaskDone(!checkbox.checked);
-    } else if (dx <= 8 && dy <= 8 && !scrolled) {
-      dismissMobileTaskActions(item);
-      item.classList.add("actions-visible");
     }
   }, true);
   item.addEventListener("pointercancel", () => { clear(); dismissMobileTaskActions(); });
@@ -1374,6 +1369,9 @@ function wireMobileTaskGesture(item, checkbox, setTaskDone) {
 }
 
 function wireMobileTaskDismissal() {
+  window.matchMedia("(max-width: 900px)").addEventListener("change", (event) => {
+    if (event.matches && editState) cancelTaskEdit();
+  });
   document.addEventListener("pointerdown", (event) => {
     if (isMobileTaskView()) dismissMobileTaskActions(event.target.closest(".task-item"));
   }, true);
