@@ -94,9 +94,11 @@
             <div class="rj-target-grid" role="group" aria-label="Choose where to add this item">
               <button class="rj-target-btn" type="submit" data-rj-kind="todo" aria-label="Add to my to-do list" title="Add to my to-do list">
                 <span class="rj-target-symbol rj-kind-symbol" aria-hidden="true">&#10003;</span>
+                <span class="rj-target-label" aria-hidden="true">To-do</span>
               </button>
               <button class="rj-target-btn" type="submit" data-rj-kind="schedule" aria-label="Add to my schedule" title="Add to my schedule">
                 <span class="rj-target-symbol rj-kind-symbol" aria-hidden="true">&#9719;</span>
+                <span class="rj-target-label" aria-hidden="true">Schedule</span>
               </button>
             </div>
             <button
@@ -375,6 +377,11 @@
       </div>
     </main>
 
+    <!-- Helpers declare functions only; app.js owns shared state and starts the planner. -->
+    <script src="planner-time.js"></script>
+    <script src="task-edit.js"></script>
+    <script src="task-lists.js"></script>
+    <script src="sync.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
