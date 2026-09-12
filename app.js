@@ -2446,10 +2446,10 @@ function removeCompletedToDoAssignments(tasks) {
   return tasks.filter((task) => isRecurringTask(task) || !task.done);
 }
 
-// Keep recurrence definitions and items scheduled for the new day or later.
-// Everything belonging to the ending day expires, regardless of completion.
+// Unfinished one-time items carry forward, including overdue scheduled items.
+// Only completed items expire; recurrence definitions remain for their next day.
 function clearExpiredRjItems(tasks, todayId) {
-  return tasks.filter((task) => isRecurringTask(task) || normalizeDateId(task.showOnDate) >= todayId)
+  return tasks.filter((task) => isRecurringTask(task) || !task.done || normalizeDateId(task.showOnDate) >= todayId)
     .map((task) => {
       if (!isRecurringTask(task)) return task;
       const refreshed = { ...task, done: false, lastCompletedDate: "", lastRestoredDate: "" };
