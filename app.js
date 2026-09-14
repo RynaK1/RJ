@@ -1519,9 +1519,20 @@ function isTaskVisibleInList(listType, task) {
     return normalizeDateId(task.lastCompletedDate) === todayId;
   }
 
-  const wasRestoredToday = normalizeDateId(task.lastRestoredDate) === todayId;
+  const restoredDate = normalizeDateId(task.lastRestoredDate);
+  if (restoredDate && restoredDate <= todayId) return true;
+  if (doesRecurringTaskShowToday(task)) return true;
 
-  return !task.done && (wasRestoredToday || doesRecurringTaskShowToday(task));
+  // Once an occurrence becomes available, keep it visible until completed.
+  const startDate = normalizeDateId(task.recurringStartDate);
+  if (!startDate) return true;
+  const showDays = getEffectiveRecurringShowDays(task);
+  for (let daysAgo = 1; daysAgo <= 7; daysAgo += 1) {
+    const dateId = addCalendarDaysToDateId(todayId, -daysAgo);
+    if (dateId < startDate) break;
+    if (showDays.includes(new Date(`${dateId}T00:00:00Z`).getUTCDay())) return true;
+  }
+  return false;
 }
 
 function isTaskAvailableByDate(task) {
@@ -2353,7 +2364,7 @@ function refreshRecurringTasksIfNeeded() {
     const lastCompletedDate = normalizeDateId(task.lastCompletedDate);
     const nextDueDate = normalizeDateId(task.nextDueDate);
     const shouldClearExpiredCompletion = task.done && lastCompletedDate !== todayId;
-    const shouldRefreshDueDate = !nextDueDate || nextDueDate <= todayId;
+    const shouldRefreshDueDate = !nextDueDate;
 
     if (!shouldClearExpiredCompletion && !shouldRefreshDueDate) {
       return task;
@@ -2366,12 +2377,13 @@ function refreshRecurringTasksIfNeeded() {
     };
 
     if (shouldRefreshDueDate) {
-      refreshedTask.recurringStartDate = todayId;
-      refreshedTask.nextDueDate = addDaysToDateId(todayId, task.intervalDays);
+      refreshedTask.recurringStartDate = normalizeDateId(task.recurringStartDate) || todayId;
+      refreshedTask.nextDueDate = addDaysToDateId(refreshedTask.recurringStartDate, task.intervalDays);
     }
 
     if (shouldClearExpiredCompletion) {
       refreshedTask.done = false;
+      refreshedTask.recurringStartDate = todayId;
       refreshedTask.lastCompletedDate = "";
       delete refreshedTask.completedOrder;
       delete refreshedTask.lastRestoredDate;
@@ -2403,13 +2415,13 @@ function runResetsIfNeeded() {
 
   if (listSet.periodIds.daily !== nextDailyPeriodId) {
     listSet.periodIds.daily = nextDailyPeriodId;
-    listSet.tasks.daily = listSet.tasks.daily.map(resetTaskCompletion);
+    listSet.tasks.daily = listSet.tasks.daily.filter((task) => !task.done);
+    listSet.tasks.weekly = listSet.tasks.weekly.filter((task) => !task.done);
     didReset = true;
   }
 
   if (listSet.periodIds.weekly !== nextWeeklyPeriodId) {
     listSet.periodIds.weekly = nextWeeklyPeriodId;
-    listSet.tasks.weekly = listSet.tasks.weekly.map(resetTaskCompletion);
     didReset = true;
   }
 
@@ -2449,10 +2461,10 @@ function removeCompletedToDoAssignments(tasks) {
 // Unfinished one-time items carry forward, including overdue scheduled items.
 // Only completed items expire; recurrence definitions remain for their next day.
 function clearExpiredRjItems(tasks, todayId) {
-  return tasks.filter((task) => isRecurringTask(task) || !task.done || normalizeDateId(task.showOnDate) >= todayId)
+  return tasks.filter((task) => isRecurringTask(task) || !task.done)
     .map((task) => {
-      if (!isRecurringTask(task)) return task;
-      const refreshed = { ...task, done: false, lastCompletedDate: "", lastRestoredDate: "" };
+      if (!isRecurringTask(task) || !task.done) return task;
+      const refreshed = { ...task, done: false, recurringStartDate: todayId, lastCompletedDate: "", lastRestoredDate: "" };
       delete refreshed.completedOrder;
       return refreshed;
     });

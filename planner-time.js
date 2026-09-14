@@ -296,20 +296,14 @@ function currentResetDisplayDate(date = new Date()) {
 
 function renderResetLabels() {
   const dailyReset = currentResetDisplayDate(nextUtcDailyResetDate());
-  const weeklyReset = currentResetDisplayDate(nextUtcWeeklyResetDate());
 
-  els.dailyResetLabel.textContent = `Reset: ${formatPlannerDate(dailyReset, {
+  els.dailyResetLabel.textContent = `Clears completed: ${formatPlannerDate(dailyReset, {
     hour: "numeric",
     minute: "2-digit",
   })}`;
-  els.weeklyResetLabel.textContent = `Reset: ${formatPlannerDate(weeklyReset, {
-    weekday: "short",
-    month: "long",
-    day: "numeric",
-  })}`;
+  els.weeklyResetLabel.textContent = els.dailyResetLabel.textContent;
 }
 
 function formatPlannerDate(dateObj, options) {
   return new Intl.DateTimeFormat(undefined, { ...options, timeZone: "UTC" }).format(dateObj);
 }
-
