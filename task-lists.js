@@ -517,10 +517,16 @@ function reorderRjListTasks(owner, kind, reorderedIds) {
       return getRjTaskGroup(task) === draggedGroup && isTaskVisibleInList("persistent", task);
     }
 
-    return true;
+    return isTaskVisibleInList("persistent", task);
   };
   const taskById = new Map(sourceTasks.filter(shouldReorder).map((task) => [task.id, task]));
-  const orderedTasks = reorderedIds.map((taskId) => taskById.get(taskId)).filter(Boolean);
+  // To-do drops include other groups; only reorder the dragged group.
+  reorderedIds = reorderedIds.filter((taskId) => taskById.has(taskId));
+  // A drag may become stale during a reset or sync. Never replace a subset of
+  // rows: that can duplicate one task and silently overwrite another.
+  if (new Set(reorderedIds).size !== taskById.size || reorderedIds.length !== taskById.size ||
+      reorderedIds.some((taskId) => !taskById.has(taskId))) return;
+  const orderedTasks = reorderedIds.map((taskId) => taskById.get(taskId));
   let orderedIndex = 0;
   const nextTasks = sourceTasks.map((task) => {
     if (!shouldReorder(task)) {

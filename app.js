@@ -1516,7 +1516,7 @@ function isTaskVisibleInList(listType, task) {
   const todayId = dailyPeriodId(new Date());
 
   if (task.done) {
-    return normalizeDateId(task.lastCompletedDate) === todayId;
+    return true; // Completed rows remain until the reset removes the occurrence.
   }
 
   const restoredDate = normalizeDateId(task.lastRestoredDate);
@@ -1646,9 +1646,11 @@ function setTaskCompletionState(task, done) {
   task.done = done;
 
   if (done) {
+    task.completedOn = state.activeListSet === "schedms" ? schedmsDailyPeriodId(new Date()) : dailyPeriodId(new Date());
     task.completedOrder = getNextCompletionOrder();
   } else {
     delete task.completedOrder;
+    delete task.completedOn;
   }
 }
 
@@ -2353,53 +2355,16 @@ function runTimedUpdatesIfNeeded() {
 }
 
 function refreshRecurringTasksIfNeeded() {
+  // Only initialize missing recurrence metadata. Never reset an occurrence here.
   const todayId = dailyPeriodId(new Date());
-  let didRefresh = false;
-
-  state.listSets.rj.tasks.persistent = state.listSets.rj.tasks.persistent.map((task) => {
-    if (!isRecurringTask(task)) {
-      return task;
-    }
-
-    const lastCompletedDate = normalizeDateId(task.lastCompletedDate);
-    const nextDueDate = normalizeDateId(task.nextDueDate);
-    const shouldClearExpiredCompletion = task.done && lastCompletedDate !== todayId;
-    const shouldRefreshDueDate = !nextDueDate;
-
-    if (!shouldClearExpiredCompletion && !shouldRefreshDueDate) {
-      return task;
-    }
-
-    didRefresh = true;
-
-    const refreshedTask = {
-      ...task,
-    };
-
-    if (shouldRefreshDueDate) {
-      refreshedTask.recurringStartDate = normalizeDateId(task.recurringStartDate) || todayId;
-      refreshedTask.nextDueDate = addDaysToDateId(refreshedTask.recurringStartDate, task.intervalDays);
-    }
-
-    if (shouldClearExpiredCompletion) {
-      refreshedTask.done = false;
-      refreshedTask.recurringStartDate = todayId;
-      refreshedTask.lastCompletedDate = "";
-      delete refreshedTask.completedOrder;
-      delete refreshedTask.lastRestoredDate;
-    } else if (!refreshedTask.done) {
-      refreshedTask.lastCompletedDate = "";
-      delete refreshedTask.completedOrder;
-    }
-
-    return refreshedTask;
+  let changed = false;
+  state.listSets.rj.tasks.persistent.forEach((task) => {
+    if (!isRecurringTask(task) || normalizeDateId(task.nextDueDate)) return;
+    task.nextDueDate = addDaysToDateId(normalizeDateId(task.recurringStartDate) || todayId, task.intervalDays);
+    changed = true;
   });
-
-  if (didRefresh) {
-    saveState();
-  }
-
-  return didRefresh;
+  if (changed) saveState();
+  return changed;
 }
 
 function runResetsIfNeeded() {
@@ -2413,10 +2378,10 @@ function runResetsIfNeeded() {
   const listSet = state.listSets.schedms;
   let didReset = false;
 
-  if (listSet.periodIds.daily !== nextDailyPeriodId) {
+  if (!listSet.periodIds.daily || listSet.periodIds.daily < nextDailyPeriodId) {
     listSet.periodIds.daily = nextDailyPeriodId;
-    listSet.tasks.daily = listSet.tasks.daily.filter((task) => !task.done);
-    listSet.tasks.weekly = listSet.tasks.weekly.filter((task) => !task.done);
+    listSet.tasks.daily = listSet.tasks.daily.filter((task) => !isCompletedBeforeDay(task, nextDailyPeriodId));
+    listSet.tasks.weekly = listSet.tasks.weekly.filter((task) => !isCompletedBeforeDay(task, nextDailyPeriodId));
     didReset = true;
   }
 
@@ -2440,9 +2405,9 @@ function runResetsIfNeeded() {
       return;
     }
 
-    if (targetListSet.periodIds.persistent !== nextPersistentPeriodId) {
+    if (targetListSet.periodIds.persistent < nextPersistentPeriodId) {
       targetListSet.periodIds.persistent = nextPersistentPeriodId;
-      targetListSet.tasks.persistent = removeCompletedToDoAssignments(targetListSet.tasks.persistent);
+      targetListSet.tasks.persistent = removeCompletedToDoAssignments(targetListSet.tasks.persistent, nextPersistentPeriodId);
       didReset = true;
     }
   });
@@ -2454,25 +2419,32 @@ function runResetsIfNeeded() {
   return didReset;
 }
 
-function removeCompletedToDoAssignments(tasks) {
-  return tasks.filter((task) => isRecurringTask(task) || !task.done);
+function isCompletedBeforeDay(task, todayId) {
+  if (task.done !== true) return false;
+  const completedOn = normalizeDateId(task.completedOn) || normalizeDateId(task.lastCompletedDate);
+  return !completedOn || completedOn < todayId;
+}
+
+function removeCompletedToDoAssignments(tasks, todayId = schedmsDailyPeriodId(new Date())) {
+  return tasks.filter((task) => !isCompletedBeforeDay(task, todayId));
 }
 
 // Unfinished one-time items carry forward, including overdue scheduled items.
 // Only completed items expire; recurrence definitions remain for their next day.
 function clearExpiredRjItems(tasks, todayId) {
-  return tasks.filter((task) => isRecurringTask(task) || !task.done)
+  return tasks.filter((task) => isRecurringTask(task) || !isCompletedBeforeDay(task, todayId))
     .map((task) => {
-      if (!isRecurringTask(task) || !task.done) return task;
+      if (!isRecurringTask(task) || !isCompletedBeforeDay(task, todayId)) return task;
       const refreshed = { ...task, done: false, recurringStartDate: todayId, lastCompletedDate: "", lastRestoredDate: "" };
       delete refreshed.completedOrder;
+      delete refreshed.completedOn;
       return refreshed;
     });
 }
 
 function resetRjDay(listSet, todayId) {
   const previousId = listSet.periodIds.persistent;
-  if (previousId === todayId) return false;
+  if (previousId && previousId >= todayId) return false;
   if (previousId) {
     Object.keys(listSet.tasks).forEach((kind) => {
       listSet.tasks[kind] = clearExpiredRjItems(listSet.tasks[kind], todayId);
@@ -2487,8 +2459,8 @@ function resetSharedRjDayIfNeeded() {
   const todayId = dailyPeriodId(new Date());
   const previousId = sharedRjState.periodId || (sharedRjState.lastSavedAt
     ? dailyPeriodId(new Date(sharedRjState.lastSavedAt)) : "");
-  if (previousId === todayId && sharedRjState.periodId) return false;
-  if (previousId && previousId !== todayId) {
+  if (previousId >= todayId && sharedRjState.periodId) return false;
+  if (previousId && previousId < todayId) {
     Object.keys(sharedRjState.tasks).forEach((kind) => {
       sharedRjState.tasks[kind] = clearExpiredRjItems(sharedRjState.tasks[kind], todayId);
     });
@@ -2509,9 +2481,10 @@ function normalizeTaskSet(taskSet) {
       const normalizedTask = {
         id: String(task?.id || crypto.randomUUID()),
         text: String(task?.text || "").trim().slice(0, MAX_TASK_TEXT_LENGTH),
-        done: Boolean(task?.done),
+        done: task?.done === true,
         priority: Boolean(task?.priority),
       };
+      if (normalizedTask.done && normalizeDateId(task.completedOn)) normalizedTask.completedOn = normalizeDateId(task.completedOn);
       const irlKind = normalizeRjListKind(task?.irlKind);
       const completedOrder = normalizeCompletionOrder(task?.completedOrder);
       const showOnDate = normalizeDateId(task?.showOnDate);

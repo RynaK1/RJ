@@ -30,3 +30,7 @@ CSS remains in cascade order: base/component rules, mode-specific refinements, a
 Check JavaScript syntax and git diff --check. For browser verification, use a paired account to edit and move an item between Mine/Shared and To-do/Schedule, confirm text and options persist, and reload. Also check MS list selection, Escape/outside-click cancellation, recurring panels, and the mobile layout.
 
 For CSS changes, compare computed styles against the previous stylesheet across IRL/MS, paired/unpaired, editing, recurring panels, settings, and authentication. Include pseudo-elements, hover/focus/disabled states, breakpoint boundaries, reduced motion, and touch input. Freeze animations for static comparisons; keep their declarations and keyframes intact unless separately verified.
+
+## Task retention regression checks
+
+Run `python tests/run-task-retention.py` (Chrome required; use `--chrome PATH` to select a binary). The isolated browser harness uses fake dates and mocked sync responses; it never signs in or contacts Supabase. It covers 40 days of resets and reloads, completion dates, backward clock changes, hidden scheduled items during reordering, and late shared-list responses.

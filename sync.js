@@ -291,10 +291,17 @@ async function loadSharedRjPlannerState({ silent = false } = {}) {
   const acceptedPairing = getAcceptedPairing();
   const pairingId = acceptedPairing?.id || "";
 
-  if (!pairingId || (sharedRjSyncPending && sharedRjPairingId === pairingId)) {
+  if (!pairingId || ((sharedRjSyncPending || sharedRjSyncInFlight || sharedChangesUnsaved) && sharedRjPairingId === pairingId)) {
     return;
   }
 
+  const requestUserId = supabaseUserId;
+  const storageKey = getSharedRjStorageKey(pairingId);
+  const localSnapshot = localStorage.getItem(storageKey);
+  const requestState = sharedRjState;
+  const canApplyResponse = () => getAcceptedPairing()?.id === pairingId && supabaseUserId === requestUserId &&
+    sharedRjState === requestState && !sharedRjSyncPending && !sharedRjSyncInFlight &&
+    !sharedChangesUnsaved && localStorage.getItem(storageKey) === localSnapshot;
   const localState = loadSharedRjStateFromStorage(pairingId);
 
   if (!sharedRjRemoteAvailable) {
@@ -315,6 +322,7 @@ async function loadSharedRjPlannerState({ silent = false } = {}) {
       throw error;
     }
 
+    if (!canApplyResponse()) return;
     const remoteState = data?.data ? normalizeSharedRjState(data.data) : null;
     const shouldUseRemote = remoteState && (!localState || isStateNewer(remoteState, localState));
     sharedRjState = shouldUseRemote ? remoteState : localState || remoteState || createDefaultSharedRjState();
@@ -326,6 +334,7 @@ async function loadSharedRjPlannerState({ silent = false } = {}) {
       renderSharedRjLists();
     }
   } catch (error) {
+    if (!canApplyResponse()) return;
     sharedRjState = localState || createDefaultSharedRjState();
     sharedRjPairingId = pairingId;
     const isMissingTable = isMissingSharedStateTableError(error);
