@@ -9,24 +9,28 @@ import tempfile
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--chrome', default=r'C:\Program Files\Google\Chrome\Application\chrome.exe')
+parser.add_argument('--suite', choices=['retention', 'sync', 'all'], default='all')
+parser.add_argument('--baseline', action='store_true', help='Run against committed JavaScript to reproduce a regression')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 html = (root / 'index.html').read_text(encoding='utf-8')
 def inline(match):
-    source = (root / match[1]).read_text(encoding='utf-8')
+    source = subprocess.check_output(['git', 'show', 'HEAD:' + match[1]], cwd=root).decode('utf-8') if args.baseline else (root / match[1]).read_text(encoding='utf-8')
     if match[1] == 'app.js':
         source = source.replace('initialize();', '/* Isolated test: no auth or timers. */', 1)
     return '<script>' + source + '</script>'
 html = re.sub(r'<script src="([^"]+)"></script>', inline, html)
-html = html.replace('</body>', '<script>' + (root / 'tests/task-retention.js').read_text(encoding='utf-8-sig') + '</script></body>')
-with tempfile.TemporaryDirectory(prefix='rj-retention-') as work:
-    page = Path(work) / 'test.html'
-    page.write_text(html, encoding='utf-8')
-    result = subprocess.run([args.chrome, '--headless', '--disable-gpu', '--no-sandbox',
-        '--user-data-dir=' + str(Path(work) / 'profile'), '--virtual-time-budget=1500',
-        '--dump-dom', page.as_uri()], capture_output=True, text=True, encoding='utf-8', timeout=30)
-    match = re.search(r'<body>(.*?)</body>', result.stdout, re.S)
-    output = match[1].strip() if match else result.stderr
-    print(output)
-    if not output.startswith('PASS'):
-        raise SystemExit(1)
+suites = ['retention', 'sync'] if args.suite == 'all' else [args.suite]
+for suite in suites:
+    test_html = html.replace('</body>', '<script>' + (root / ('tests/task-' + suite + '.js')).read_text(encoding='utf-8-sig') + '</script></body>')
+    with tempfile.TemporaryDirectory(prefix='rj-retention-') as work:
+        page = Path(work) / 'test.html'
+        page.write_text(test_html, encoding='utf-8')
+        result = subprocess.run([args.chrome, '--headless', '--disable-gpu', '--no-sandbox',
+            '--user-data-dir=' + str(Path(work) / 'profile'), '--virtual-time-budget=1500',
+            '--dump-dom', page.as_uri()], capture_output=True, text=True, encoding='utf-8', timeout=30)
+        match = re.search(r'<body\b[^>]*>(.*?)</body>', result.stdout, re.S)
+        output = match[1].strip() if match else result.stderr
+        print(suite + ': ' + output)
+        if not output.startswith('PASS'):
+            raise SystemExit(1)

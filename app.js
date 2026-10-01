@@ -83,6 +83,7 @@ const defaultState = {
     pairedAccountDisplayName: "",
   },
   lastSavedAt: "",
+  deletedTaskIds: [],
   activeListSet: INITIAL_LIST_SET_ID,
   listSets: {
     schedms: createDefaultListSetState(),
@@ -108,6 +109,7 @@ function createDefaultListSetState() {
 function createDefaultSharedRjState() {
   return {
     lastSavedAt: "",
+    deletedTaskIds: [],
     periodId: "",
     tasks: {
       todo: [],
@@ -184,6 +186,7 @@ let supabaseUserId = "";
 let personalChangesUnsaved = false;
 let sharedChangesUnsaved = false;
 let supabaseSyncReady = false;
+let plannerSessionVersion = 0;
 let supabaseSyncPending = false;
 let supabaseSyncInFlight = false;
 let supabaseSyncStatus = "local";
@@ -358,6 +361,8 @@ const els = {
   saveStatus: document.getElementById("save-status"),
 };
 
+let dailyResetTimeout = null;
+
 initialize();
 
 function initialize() {
@@ -374,6 +379,11 @@ function initialize() {
   wireEvents();
   wireMobileTaskDismissal();
   window.setInterval(tickResets, 15000);
+  window.addEventListener("focus", tickResets);
+  window.addEventListener("pageshow", tickResets);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) tickResets();
+  });
   renderAll();
   ensureSaveStatusTimestamp();
   initializeSupabaseSync();
@@ -384,7 +394,18 @@ function tickResets() {
     renderAll();
   }
 
+  scheduleDailyReset();
+
+  if (supabaseSyncReady && supabaseSyncPending && !supabaseSyncInFlight) void flushSupabaseSync();
+  if (supabaseSyncReady && sharedRjSyncPending && !sharedRjSyncInFlight && sharedRjRemoteAvailable) void flushSharedRjSync();
+
   void refreshPairingContext({ silent: true });
+}
+
+function scheduleDailyReset() {
+  window.clearTimeout(dailyResetTimeout);
+  const now = new Date();
+  dailyResetTimeout = window.setTimeout(tickResets, Math.max(1, nextPlannerDailyResetDate(now).getTime() - now.getTime()));
 }
 
 function populateTimezoneOptions() {
@@ -1399,6 +1420,7 @@ function removeTaskFromList(listType, taskId) {
   }
 
   activeSet.tasks[listType] = nextTasks;
+  recordTaskDeletion(state, taskId);
   pendingAppendAnimations.delete(taskId);
 
   if (isEditingTask(listType, taskId)) {
@@ -2380,8 +2402,8 @@ function runResetsIfNeeded() {
 
   if (!listSet.periodIds.daily || listSet.periodIds.daily < nextDailyPeriodId) {
     listSet.periodIds.daily = nextDailyPeriodId;
-    listSet.tasks.daily = listSet.tasks.daily.filter((task) => !isCompletedBeforeDay(task, nextDailyPeriodId));
-    listSet.tasks.weekly = listSet.tasks.weekly.filter((task) => !isCompletedBeforeDay(task, nextDailyPeriodId));
+    listSet.tasks.daily = clearExpiredRjItems(listSet.tasks.daily, nextDailyPeriodId);
+    listSet.tasks.weekly = clearExpiredRjItems(listSet.tasks.weekly, nextDailyPeriodId);
     didReset = true;
   }
 
@@ -2426,7 +2448,7 @@ function isCompletedBeforeDay(task, todayId) {
 }
 
 function removeCompletedToDoAssignments(tasks, todayId = schedmsDailyPeriodId(new Date())) {
-  return tasks.filter((task) => !isCompletedBeforeDay(task, todayId));
+  return clearExpiredRjItems(tasks, todayId);
 }
 
 // Unfinished one-time items carry forward, including overdue scheduled items.
@@ -2529,6 +2551,7 @@ function normalizeSharedRjState(parsed) {
 
   return {
     lastSavedAt: normalizeSavedAt(parsed?.lastSavedAt),
+    deletedTaskIds: normalizeDeletedTaskIds(parsed?.deletedTaskIds),
     periodId: normalizeDateId(parsed?.periodId),
     tasks: {
       todo: normalizeTaskSet(parsed?.tasks?.todo || defaults.tasks.todo).map((task) => ({
@@ -2611,6 +2634,7 @@ function normalizeStateData(parsed) {
     },
     lastSavedAt: normalizeSavedAt(parsed?.lastSavedAt),
     activeListSet: normalizeListSetId(parsed?.activeListSet),
+    deletedTaskIds: normalizeDeletedTaskIds(parsed?.deletedTaskIds),
     listSets,
   };
 }

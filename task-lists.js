@@ -391,6 +391,7 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
           return;
         }
         tasks.splice(taskIndex, 1);
+        recordTaskDeletion(sharedRjState, task.id);
       }
       pendingAppendAnimations.delete(task.id);
       persistChange();

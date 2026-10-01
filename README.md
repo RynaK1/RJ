@@ -33,4 +33,10 @@ For CSS changes, compare computed styles against the previous stylesheet across 
 
 ## Task retention regression checks
 
-Run `python tests/run-task-retention.py` (Chrome required; use `--chrome PATH` to select a binary). The isolated browser harness uses fake dates and mocked sync responses; it never signs in or contacts Supabase. It covers 40 days of resets and reloads, completion dates, backward clock changes, hidden scheduled items during reordering, and late shared-list responses.
+Daily cleanup runs at midnight in the selected time zone, including the optional daylight saving adjustment. Unfinished tasks carry forward until manually deleted or completed; completed one-time tasks clear at the next daily reset, while recurring definitions remain. A midnight timer and checks when the page resumes catch resets after sleep or reopening.
+
+Sync reconciles local and cloud task collections rather than discarding one snapshot. Manual deletions are stored in `deletedTaskIds`, so merging older snapshots cannot restore deleted tasks. Failed saves keep their local copy and retry during the periodic update. Older clients do not record deletions; reload updated clients before deleting tasks on another device.
+
+Run `python tests/run-task-retention.py` (Chrome required; use `--chrome PATH` to select a binary). The isolated browser harness uses fake dates and mocked sync responses; it never signs in or contacts Supabase. It covers 40 days of resets and reloads, the PST midnight boundary, daylight saving adjustment, completion dates, backward clock changes, hidden scheduled items during reordering, and late shared-list responses.
+
+The sync suite also exercises actual local storage, delayed login responses, newer incomplete cloud snapshots, failed reads/writes, queued edits, manual deletion, and 90 days across every time-zone/DST combination. Use `--suite retention` or `--suite sync` to run one suite.

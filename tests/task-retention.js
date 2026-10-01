@@ -100,6 +100,58 @@
   for (const set of Object.values(state.listSets)) for (const tasks of Object.values(set.tasks)) check(!tasks.some(t => t.id === 'finish-next'), 'Next-day completion removed');
   for (const tasks of Object.values(sharedRjState.tasks)) check(!tasks.some(t => t.id === 'finish-next'), 'Shared completion cleared next day');
 
+  // UTC midnight must not clear tasks before midnight in the selected zone.
+  state = structuredClone(defaultState);
+  state.settings.timezoneOffset = '-08:00';
+  state.activeListSet = 'rj';
+  selfState = state;
+  clock = '2026-10-01T00:00:00Z';
+  const midnightFixtures = () => [
+    { id: 'carry', text: 'Keep until finished or deleted', done: false },
+    { id: 'finished', text: 'Finished today', done: true, completedOn: '2026-09-30' },
+    { id: 'repeat-finished', text: 'Recurring definition', done: true, completedOn: '2026-09-30', recurring: true, intervalDays: 1 },
+  ];
+  for (const set of Object.values(state.listSets)) {
+    set.periodIds = { daily: '2026-09-30', weekly: '2026-09-24', persistent: '2026-09-30' };
+    for (const kind of Object.keys(set.tasks)) set.tasks[kind] = midnightFixtures();
+  }
+  sharedRjState = { periodId: '2026-09-30', lastSavedAt: clock, tasks: { todo: midnightFixtures(), schedule: midnightFixtures() } };
+  runTimedUpdatesIfNeeded();
+  for (const set of Object.values(state.listSets)) for (const tasks of Object.values(set.tasks)) {
+    check(tasks.some(t => t.id === 'finished'), 'UTC midnight retains tasks until PST midnight');
+  }
+  check(nextPlannerDailyResetDate().toISOString() === '2026-10-01T08:00:00.000Z', 'PST reset is scheduled at 12 AM PST');
+  renderResetLabels();
+  check(els.dailyResetLabel.textContent.includes('12:00'), 'Reset label shows local midnight');
+  window.clearTimeout(dailyResetTimeout);
+  clock = '2026-10-01T07:59:59.999Z';
+  check(nextPlannerDailyResetDate().getTime() - Date.now() === 1, 'Reset timer targets the midnight boundary');
+  runTimedUpdatesIfNeeded();
+  for (const set of Object.values(state.listSets)) for (const tasks of Object.values(set.tasks)) {
+    check(tasks.some(t => t.id === 'finished'), 'Completed task survives the last millisecond before midnight');
+  }
+  clock = '2026-10-01T08:00:00Z';
+  runTimedUpdatesIfNeeded();
+  for (const set of Object.values(state.listSets)) for (const tasks of Object.values(set.tasks)) {
+    check(tasks.map(t => t.id).join(',') === 'carry,repeat-finished', 'PST midnight clears only finished one-time tasks');
+    check(tasks.find(t => t.id === 'repeat-finished').done === false, 'Recurring definition survives midnight');
+  }
+  for (const tasks of Object.values(sharedRjState.tasks)) {
+    check(tasks.map(t => t.id).join(',') === 'carry,repeat-finished', 'Shared tasks follow PST midnight and retain unfinished tasks');
+  }
+  state.activeListSet = 'schedms';
+  const completedInPst = state.listSets.schedms.tasks.daily[0];
+  clock = '2026-10-02T01:00:00Z';
+  setTaskCompletionState(completedInPst, true);
+  check(completedInPst.completedOn === '2026-10-01', 'MS completion uses the selected zone instead of the UTC day');
+  state.settings.daylightSavingsAdjustment = 1;
+  check(nextPlannerDailyResetDate().toISOString() === '2026-10-02T07:00:00.000Z', 'Daylight saving adjustment moves midnight by one hour');
+  state.settings.timezoneOffset = '+14:00';
+  state.settings.daylightSavingsAdjustment = 0;
+  check(nextPlannerDailyResetDate().toISOString() === '2026-10-02T10:00:00.000Z', 'Positive time zones schedule the correct midnight');
+  state.settings.timezoneOffset = '-08:00';
+  state.activeListSet = 'rj';
+
   saveSharedRjState = actualSharedSave;
   queueSharedRjSync = () => {};
   renderSaveStatus = () => {};

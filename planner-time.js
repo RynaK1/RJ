@@ -260,7 +260,13 @@ function dailyPeriodId(now) {
 }
 
 function schedmsDailyPeriodId(now) {
-  return formatDateParts(now);
+  return dailyPeriodId(now);
+}
+
+function nextPlannerDailyResetDate(now = new Date()) {
+  const plannerNow = currentPlannerDate(now);
+  const nextMidnight = Date.UTC(plannerNow.getUTCFullYear(), plannerNow.getUTCMonth(), plannerNow.getUTCDate() + 1);
+  return new Date(now.getTime() + nextMidnight - plannerNow.getTime());
 }
 
 function schedmsWeeklyPeriodId(now) {
@@ -295,13 +301,14 @@ function currentResetDisplayDate(date = new Date()) {
 }
 
 function renderResetLabels() {
-  const dailyReset = currentResetDisplayDate(nextUtcDailyResetDate());
+  const dailyReset = currentResetDisplayDate(nextPlannerDailyResetDate());
 
   els.dailyResetLabel.textContent = `Clears completed: ${formatPlannerDate(dailyReset, {
     hour: "numeric",
     minute: "2-digit",
   })}`;
   els.weeklyResetLabel.textContent = els.dailyResetLabel.textContent;
+  scheduleDailyReset();
 }
 
 function formatPlannerDate(dateObj, options) {

@@ -54,12 +54,17 @@ async function importSupabaseClient() {
 }
 
 async function loadAuthenticatedPlanner(user) {
+  const sessionVersion = ++plannerSessionVersion;
+  supabaseSyncReady = false;
+  supabaseSyncPending = false;
   personalChangesUnsaved = false;
   sharedChangesUnsaved = false;
   setSupabaseSyncStatus("connecting");
   supabaseUserId = user.id;
   signedInUserEmail = user.email || "Signed in";
   activeStorageKey = getUserStorageKey(user.id);
+  state = loadStateFromStorage(activeStorageKey);
+  selfState = state;
   partnerState = null;
   sharedRjState = createDefaultSharedRjState();
   sharedRjPairingId = "";
@@ -69,17 +74,19 @@ async function loadAuthenticatedPlanner(user) {
   pairingContext = createEmptyPairingContext();
 
   await upsertPlannerProfile(user);
+  if (sessionVersion !== plannerSessionVersion) return;
 
+  const remoteState = await loadSupabaseState();
+  if (sessionVersion !== plannerSessionVersion) return;
   const hasUserLocalState = hasStoredState(activeStorageKey);
   const userLocalState = hasUserLocalState ? loadStateFromStorage(activeStorageKey) : null;
-  const remoteState = await loadSupabaseState();
   const shouldMigrateLegacyState = shouldImportLegacyState(user.id, hasUserLocalState, remoteState);
   const localState = shouldMigrateLegacyState ? loadStateFromStorage(STORAGE_KEY) : userLocalState;
   const hasLocalState = Boolean(localState);
-  const shouldUseRemoteState = remoteState && (!hasLocalState || isStateNewer(remoteState, localState));
-  let shouldUploadState = !remoteState || (!shouldUseRemoteState && hasLocalState && isStateNewer(localState, remoteState));
+  let shouldUploadState = !remoteState || (hasLocalState && isStateNewer(localState, remoteState));
 
-  state = shouldUseRemoteState ? remoteState : localState || structuredClone(defaultState);
+  state = reconcilePlannerStates(remoteState, localState);
+  if (remoteState && JSON.stringify(state) !== JSON.stringify(remoteState)) shouldUploadState = true;
   showInitialListSet();
   if (!state.lastSavedAt) {
     state.lastSavedAt = new Date().toISOString();
@@ -96,6 +103,7 @@ async function loadAuthenticatedPlanner(user) {
 
   persistLocalState();
   await refreshPairingContext({ silent: true });
+  if (sessionVersion !== plannerSessionVersion) return;
   hydrateStateUIAfterRemoteLoad();
   showPlannerView();
 
@@ -324,11 +332,11 @@ async function loadSharedRjPlannerState({ silent = false } = {}) {
 
     if (!canApplyResponse()) return;
     const remoteState = data?.data ? normalizeSharedRjState(data.data) : null;
-    const shouldUseRemote = remoteState && (!localState || isStateNewer(remoteState, localState));
-    sharedRjState = shouldUseRemote ? remoteState : localState || remoteState || createDefaultSharedRjState();
+    sharedRjState = reconcileSharedStates(remoteState, localState);
     sharedRjPairingId = pairingId;
     resetSharedRjDayIfNeeded();
     persistSharedRjState();
+    if (remoteState && JSON.stringify(sharedRjState) !== JSON.stringify(remoteState)) queueSharedRjSync();
 
     if (state.activeListSet === "rj") {
       renderSharedRjLists();
@@ -870,6 +878,7 @@ function setAuthMessage(message, isError = false) {
 }
 
 function showAuthView(message = "", isError = false) {
+  plannerSessionVersion += 1;
   supabaseSyncReady = false;
   supabaseSyncPending = false;
   supabaseSyncInFlight = false;
@@ -907,6 +916,70 @@ function showPlannerView() {
 
 function isStateNewer(candidateState, currentState) {
   return savedAtToTime(candidateState?.lastSavedAt) > savedAtToTime(currentState?.lastSavedAt);
+}
+
+function normalizeDeletedTaskIds(value) {
+  return Array.isArray(value) ? [...new Set(value.filter((id) => typeof id === "string" && id))] : [];
+}
+
+function recordTaskDeletion(plannerState, taskId) {
+  plannerState.deletedTaskIds = normalizeDeletedTaskIds([...(plannerState.deletedTaskIds || []), taskId]);
+}
+
+// A missing row in an older snapshot is not a deletion. Only an explicit
+// deletion record or an expired completion can discard a task during sync.
+function reconcileTaskCollections(primary, secondary, primaryCollections, secondaryCollections, todayId) {
+  const deletedIds = new Set(normalizeDeletedTaskIds([...(primary.deletedTaskIds || []), ...(secondary?.deletedTaskIds || [])]));
+  primary.deletedTaskIds = [...deletedIds];
+  const presentIds = new Set();
+  for (const tasks of primaryCollections) {
+    for (let index = tasks.length - 1; index >= 0; index -= 1) {
+      if (deletedIds.has(tasks[index].id)) tasks.splice(index, 1);
+      else presentIds.add(tasks[index].id);
+    }
+  }
+  secondaryCollections.forEach((tasks, index) => {
+    for (const task of tasks) {
+      if (deletedIds.has(task.id) || presentIds.has(task.id)) continue;
+      if (!isRecurringTask(task) && isCompletedBeforeDay(task, todayId)) continue;
+      primaryCollections[index].push(structuredClone(task));
+      presentIds.add(task.id);
+    }
+  });
+  return primary;
+}
+
+function reconcilePlannerStates(remote, local, preferLocal = false) {
+  const useRemote = remote && (!local || (!preferLocal && isStateNewer(remote, local)));
+  const primary = normalizeStateData(useRemote ? remote : local);
+  const secondary = useRemote ? local : remote;
+  const collections = (value) => LIST_SET_IDS.flatMap((id) => LIST_TYPES.map((kind) => value.listSets[id].tasks[kind]));
+  const todayId = formatDateParts(toTimezoneDate(new Date(), primary.settings.timezoneOffset, primary.settings.daylightSavingsAdjustment));
+  return reconcileTaskCollections(primary, secondary, collections(primary), secondary ? collections(secondary) : [], todayId);
+}
+
+function reconcileSharedStates(remote, local, preferLocal = false) {
+  const useRemote = remote && (!local || (!preferLocal && isStateNewer(remote, local)));
+  const primary = normalizeSharedRjState(useRemote ? remote : local);
+  const secondary = useRemote ? local : remote;
+  const collections = (value) => [value.tasks.todo, value.tasks.schedule];
+  return reconcileTaskCollections(primary, secondary, collections(primary), secondary ? collections(secondary) : [], dailyPeriodId(new Date()));
+}
+
+function applyReconciledTasks(current, merged, shared = false) {
+  const collections = (value) => shared ? [value.tasks.todo, value.tasks.schedule]
+    : LIST_SET_IDS.flatMap((id) => LIST_TYPES.map((kind) => value.listSets[id].tasks[kind]));
+  const currentCollections = collections(current);
+  let changed = false;
+  collections(merged).forEach((tasks, index) => {
+    if (tasks.map(task => task.id).join(",") !== currentCollections[index].map(task => task.id).join(",")) changed = true;
+    const existing = new Map(currentCollections[index].map(task => [task.id, task]));
+    // Task cards hold references to these arrays and task objects. Keep them
+    // valid while a background save brings in tasks from another device.
+    currentCollections[index].splice(0, currentCollections[index].length, ...tasks.map(task => existing.get(task.id) || task));
+  });
+  current.deletedTaskIds = merged.deletedTaskIds;
+  return changed;
 }
 
 function savedAtToTime(value) {
@@ -1017,18 +1090,28 @@ async function flushSharedRjSync() {
   }
 
   sharedRjSyncInFlight = true;
+  const sessionVersion = plannerSessionVersion;
+  const pairingId = sharedRjPairingId;
 
   try {
     while (sharedRjSyncPending) {
       sharedRjSyncPending = false;
       setSupabaseSyncStatus("syncing");
-      const pairingId = sharedRjPairingId;
+      const { data: remote, error: readError } = await supabaseClient.from(SUPABASE_SHARED_STATE_TABLE)
+        .select("data").eq("pairing_id", pairingId).maybeSingle();
+      if (sessionVersion !== plannerSessionVersion || pairingId !== sharedRjPairingId) return;
+      if (readError) throw readError;
+      const didReconcile = applyReconciledTasks(sharedRjState, reconcileSharedStates(remote?.data ? normalizeSharedRjState(remote.data) : null, sharedRjState, true), true);
+      persistSharedRjState();
+      if (didReconcile) renderAll();
       const payload = JSON.parse(JSON.stringify(sharedRjState));
       const { error } = await supabaseClient.from(SUPABASE_SHARED_STATE_TABLE).upsert({
         pairing_id: pairingId,
         data: payload,
         updated_at: sharedRjState.lastSavedAt || new Date().toISOString(),
       });
+
+      if (sessionVersion !== plannerSessionVersion || pairingId !== sharedRjPairingId) return;
 
       if (error) {
         throw error;
@@ -1038,6 +1121,7 @@ async function flushSharedRjSync() {
       setSupabaseSyncStatus("synced");
     }
   } catch (error) {
+    if (sessionVersion !== plannerSessionVersion || pairingId !== sharedRjPairingId) return;
     if (isMissingSharedStateTableError(error)) {
       sharedRjRemoteAvailable = false;
       sharedRjRemoteNotice = "Shared lists are saved locally until Supabase setup is updated.";
@@ -1060,18 +1144,29 @@ async function flushSupabaseSync() {
   }
 
   supabaseSyncInFlight = true;
+  const sessionVersion = plannerSessionVersion;
+  const ownerId = supabaseUserId;
+  const storageKey = activeStorageKey;
 
   try {
     while (supabaseSyncPending) {
       supabaseSyncPending = false;
       setSupabaseSyncStatus("syncing");
 
+      const remoteState = await loadSupabaseState();
+      if (sessionVersion !== plannerSessionVersion || ownerId !== supabaseUserId) return;
+      const didReconcile = applyReconciledTasks(selfState, reconcilePlannerStates(remoteState, selfState, true));
+      persistLocalState(storageKey, selfState);
+      if (didReconcile) renderAll();
+
       const payload = JSON.parse(JSON.stringify(selfState));
       const { error } = await supabaseClient.from(SUPABASE_STATE_TABLE).upsert({
-        owner_id: supabaseUserId,
+        owner_id: ownerId,
         data: payload,
         updated_at: selfState.lastSavedAt || new Date().toISOString(),
       });
+
+      if (sessionVersion !== plannerSessionVersion || ownerId !== supabaseUserId) return;
 
       if (error) {
         throw error;
@@ -1086,14 +1181,13 @@ async function flushSupabaseSync() {
       setSupabaseSyncStatus("synced");
     }
   } catch (error) {
+    if (sessionVersion !== plannerSessionVersion || ownerId !== supabaseUserId) return;
+    supabaseSyncPending = true;
+    personalChangesUnsaved = true;
     setSupabaseSyncStatus("error", error);
   } finally {
     supabaseSyncInFlight = false;
     renderSaveStatus();
-
-    if (supabaseSyncPending) {
-      void flushSupabaseSync();
-    }
   }
 }
 
