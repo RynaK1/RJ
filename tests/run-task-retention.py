@@ -9,7 +9,7 @@ import tempfile
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--chrome', default=r'C:\Program Files\Google\Chrome\Application\chrome.exe')
-parser.add_argument('--suite', choices=['retention', 'sync', 'all'], default='all')
+parser.add_argument('--suite', choices=['retention', 'sync', 'resets', 'all'], default='all')
 parser.add_argument('--baseline', action='store_true', help='Run against committed JavaScript to reproduce a regression')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
@@ -20,7 +20,7 @@ def inline(match):
         source = source.replace('initialize();', '/* Isolated test: no auth or timers. */', 1)
     return '<script>' + source + '</script>'
 html = re.sub(r'<script src="([^"]+)"></script>', inline, html)
-suites = ['retention', 'sync'] if args.suite == 'all' else [args.suite]
+suites = ['retention', 'sync', 'resets'] if args.suite == 'all' else [args.suite]
 for suite in suites:
     test_html = html.replace('</body>', '<script>' + (root / ('tests/task-' + suite + '.js')).read_text(encoding='utf-8-sig') + '</script></body>')
     with tempfile.TemporaryDirectory(prefix='rj-retention-') as work:

@@ -260,7 +260,7 @@ function dailyPeriodId(now) {
 }
 
 function schedmsDailyPeriodId(now) {
-  return dailyPeriodId(now);
+  return formatDateParts(now);
 }
 
 function nextPlannerDailyResetDate(now = new Date()) {
@@ -301,12 +301,13 @@ function currentResetDisplayDate(date = new Date()) {
 }
 
 function renderResetLabels() {
-  const dailyReset = currentResetDisplayDate(nextPlannerDailyResetDate());
+  const isMs = state.activeListSet === "schedms";
+  const dailyReset = isMs ? nextUtcDailyResetDate() : currentResetDisplayDate(nextPlannerDailyResetDate());
 
   els.dailyResetLabel.textContent = `Clears completed: ${formatPlannerDate(dailyReset, {
     hour: "numeric",
     minute: "2-digit",
-  })}`;
+  })}${isMs ? " UTC" : ""}`;
   els.weeklyResetLabel.textContent = els.dailyResetLabel.textContent;
   scheduleDailyReset();
 }

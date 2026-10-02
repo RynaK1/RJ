@@ -928,7 +928,18 @@ function recordTaskDeletion(plannerState, taskId) {
 
 // A missing row in an older snapshot is not a deletion. Only an explicit
 // deletion record or an expired completion can discard a task during sync.
-function reconcileTaskCollections(primary, secondary, primaryCollections, secondaryCollections, todayId) {
+function reconcileTaskCollections(primary, secondary, primaryCollections, secondaryCollections, todayIds) {
+  primaryCollections.forEach((tasks, index) => {
+    const cleaned = clearExpiredRjItems(tasks, todayIds[index], false, primary);
+    if (cleaned !== tasks) tasks.splice(0, tasks.length, ...cleaned);
+  });
+  const primaryIds = new Set(primaryCollections.flatMap(tasks => tasks.map(task => task.id)));
+  secondaryCollections = secondaryCollections.map((tasks, index) => {
+    tasks.forEach(task => {
+      if (!primaryIds.has(task.id) && !isRecurringTask(task) && isCompletedBeforeDay(task, todayIds[index], false)) recordTaskDeletion(primary, task.id);
+    });
+    return clearExpiredRjItems(tasks, todayIds[index], false);
+  });
   const deletedIds = new Set(normalizeDeletedTaskIds([...(primary.deletedTaskIds || []), ...(secondary?.deletedTaskIds || [])]));
   primary.deletedTaskIds = [...deletedIds];
   const presentIds = new Set();
@@ -941,7 +952,7 @@ function reconcileTaskCollections(primary, secondary, primaryCollections, second
   secondaryCollections.forEach((tasks, index) => {
     for (const task of tasks) {
       if (deletedIds.has(task.id) || presentIds.has(task.id)) continue;
-      if (!isRecurringTask(task) && isCompletedBeforeDay(task, todayId)) continue;
+      if (!isRecurringTask(task) && isCompletedBeforeDay(task, todayIds[index])) continue;
       primaryCollections[index].push(structuredClone(task));
       presentIds.add(task.id);
     }
@@ -955,7 +966,8 @@ function reconcilePlannerStates(remote, local, preferLocal = false) {
   const secondary = useRemote ? local : remote;
   const collections = (value) => LIST_SET_IDS.flatMap((id) => LIST_TYPES.map((kind) => value.listSets[id].tasks[kind]));
   const todayId = formatDateParts(toTimezoneDate(new Date(), primary.settings.timezoneOffset, primary.settings.daylightSavingsAdjustment));
-  return reconcileTaskCollections(primary, secondary, collections(primary), secondary ? collections(secondary) : [], todayId);
+  const todayIds = LIST_SET_IDS.flatMap((id) => LIST_TYPES.map(() => id === "schedms" ? schedmsDailyPeriodId(new Date()) : todayId));
+  return reconcileTaskCollections(primary, secondary, collections(primary), secondary ? collections(secondary) : [], todayIds);
 }
 
 function reconcileSharedStates(remote, local, preferLocal = false) {
@@ -963,7 +975,7 @@ function reconcileSharedStates(remote, local, preferLocal = false) {
   const primary = normalizeSharedRjState(useRemote ? remote : local);
   const secondary = useRemote ? local : remote;
   const collections = (value) => [value.tasks.todo, value.tasks.schedule];
-  return reconcileTaskCollections(primary, secondary, collections(primary), secondary ? collections(secondary) : [], dailyPeriodId(new Date()));
+  return reconcileTaskCollections(primary, secondary, collections(primary), secondary ? collections(secondary) : [], [dailyPeriodId(new Date()), dailyPeriodId(new Date())]);
 }
 
 function applyReconciledTasks(current, merged, shared = false) {
@@ -972,11 +984,17 @@ function applyReconciledTasks(current, merged, shared = false) {
   const currentCollections = collections(current);
   let changed = false;
   collections(merged).forEach((tasks, index) => {
-    if (tasks.map(task => task.id).join(",") !== currentCollections[index].map(task => task.id).join(",")) changed = true;
+    if (JSON.stringify(tasks) !== JSON.stringify(currentCollections[index])) changed = true;
     const existing = new Map(currentCollections[index].map(task => [task.id, task]));
     // Task cards hold references to these arrays and task objects. Keep them
     // valid while a background save brings in tasks from another device.
-    currentCollections[index].splice(0, currentCollections[index].length, ...tasks.map(task => existing.get(task.id) || task));
+    currentCollections[index].splice(0, currentCollections[index].length, ...tasks.map(task => {
+      const target = existing.get(task.id);
+      if (!target) return task;
+      Object.keys(target).forEach(key => { if (!(key in task)) delete target[key]; });
+      Object.assign(target, task);
+      return target;
+    }));
   });
   current.deletedTaskIds = merged.deletedTaskIds;
   return changed;

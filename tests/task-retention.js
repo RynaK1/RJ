@@ -100,7 +100,7 @@
   for (const set of Object.values(state.listSets)) for (const tasks of Object.values(set.tasks)) check(!tasks.some(t => t.id === 'finish-next'), 'Next-day completion removed');
   for (const tasks of Object.values(sharedRjState.tasks)) check(!tasks.some(t => t.id === 'finish-next'), 'Shared completion cleared next day');
 
-  // UTC midnight must not clear tasks before midnight in the selected zone.
+  // MS clears at UTC midnight; IRL waits for midnight in the selected zone.
   state = structuredClone(defaultState);
   state.settings.timezoneOffset = '-08:00';
   state.activeListSet = 'rj';
@@ -117,8 +117,11 @@
   }
   sharedRjState = { periodId: '2026-09-30', lastSavedAt: clock, tasks: { todo: midnightFixtures(), schedule: midnightFixtures() } };
   runTimedUpdatesIfNeeded();
-  for (const set of Object.values(state.listSets)) for (const tasks of Object.values(set.tasks)) {
-    check(tasks.some(t => t.id === 'finished'), 'UTC midnight retains tasks until PST midnight');
+  for (const tasks of Object.values(state.listSets.rj.tasks)) {
+    check(tasks.some(t => t.id === 'finished'), 'UTC midnight retains IRL tasks until PST midnight');
+  }
+  for (const tasks of Object.values(state.listSets.schedms.tasks)) {
+    check(!tasks.some(t => t.id === 'finished'), 'MS completed tasks clear at UTC midnight');
   }
   check(nextPlannerDailyResetDate().toISOString() === '2026-10-01T08:00:00.000Z', 'PST reset is scheduled at 12 AM PST');
   renderResetLabels();
@@ -127,7 +130,7 @@
   clock = '2026-10-01T07:59:59.999Z';
   check(nextPlannerDailyResetDate().getTime() - Date.now() === 1, 'Reset timer targets the midnight boundary');
   runTimedUpdatesIfNeeded();
-  for (const set of Object.values(state.listSets)) for (const tasks of Object.values(set.tasks)) {
+  for (const tasks of Object.values(state.listSets.rj.tasks)) {
     check(tasks.some(t => t.id === 'finished'), 'Completed task survives the last millisecond before midnight');
   }
   clock = '2026-10-01T08:00:00Z';
@@ -143,7 +146,7 @@
   const completedInPst = state.listSets.schedms.tasks.daily[0];
   clock = '2026-10-02T01:00:00Z';
   setTaskCompletionState(completedInPst, true);
-  check(completedInPst.completedOn === '2026-10-01', 'MS completion uses the selected zone instead of the UTC day');
+  check(completedInPst.completedOn === '2026-10-02', 'MS completion always uses the UTC day');
   state.settings.daylightSavingsAdjustment = 1;
   check(nextPlannerDailyResetDate().toISOString() === '2026-10-02T07:00:00.000Z', 'Daylight saving adjustment moves midnight by one hour');
   state.settings.timezoneOffset = '+14:00';
