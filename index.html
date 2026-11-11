@@ -108,38 +108,42 @@
         </section>
         <section id="rj-composer" class="rj-composer" aria-label="Add an IRL item" hidden>
           <form class="add-task-form rj-composer-form" data-list="persistent" autocomplete="off">
-            <label class="sr-only" for="persistent-input">Add an IRL item</label>
-            <input id="persistent-input" type="text" maxlength="100" placeholder="Add a to-do or event" autocomplete="off" required />
-            <div class="rj-target-grid" role="group" aria-label="Choose where to add this item">
-              <button class="rj-target-btn" type="submit" data-rj-kind="todo" aria-label="Add to my to-do list" title="Add to my to-do list">
-                <span class="rj-target-symbol rj-kind-symbol" aria-hidden="true">&#10003;</span>
-                <span class="rj-target-label" aria-hidden="true">To-do</span>
+            <div class="rj-composer-input-wrap">
+              <label class="sr-only" for="persistent-input">Add an IRL item</label>
+              <span class="rj-composer-plus" aria-hidden="true">&#43;</span>
+              <input id="persistent-input" type="text" maxlength="100" placeholder="Add a to-do or event" autocomplete="off" required />
+            </div>
+            <div class="rj-composer-actions">
+              <div class="rj-target-grid" role="group" aria-label="Choose where to add this item">
+                <button class="rj-target-btn active" type="submit" data-rj-kind="todo" aria-label="Add to my to-do list" title="Add to my to-do list">
+                  <span class="rj-target-symbol rj-kind-symbol" aria-hidden="true">&#10003;</span>
+                  <span class="rj-target-label">To-do</span>
+                </button>
+                <button class="rj-target-btn" type="submit" data-rj-kind="schedule" aria-label="Add to my schedule" title="Add to my schedule">
+                  <span class="rj-target-symbol rj-kind-symbol" aria-hidden="true">&#128197;</span>
+                  <span class="rj-target-label">Event</span>
+                </button>
+              </div>
+              <div id="rj-schedule-date-wrap" class="rj-schedule-date-wrap" hidden>
+                <label class="sr-only" for="rj-schedule-date">Scheduled date</label>
+                <input type="date" id="rj-schedule-date" class="rj-schedule-date-input" aria-label="Scheduled date" title="Scheduled date" />
+              </div>
+              <button
+                id="rj-owner-toggle"
+                class="rj-owner-toggle"
+                type="button"
+                role="switch"
+                aria-checked="false"
+                aria-label="Add items to my lists"
+                title="Adding to my lists"
+              >
+                <span class="rj-owner-icon" aria-hidden="true">&#128100;</span>
+                <span class="rj-owner-label">Mine</span>
               </button>
-              <button class="rj-target-btn" type="submit" data-rj-kind="schedule" aria-label="Add to my schedule" title="Add to my schedule">
-                <span class="rj-target-symbol rj-kind-symbol" aria-hidden="true">&#9719;</span>
-                <span class="rj-target-label" aria-hidden="true">Schedule</span>
+              <button id="recurring-toggle-btn" class="recurring-toggle-btn" type="button" aria-expanded="false" aria-controls="recurring-form" aria-label="Task options" title="Task options">
+                <span class="recurring-toggle-symbol" aria-hidden="true">&#8635;</span><span class="sr-only">Task options</span>
               </button>
             </div>
-            <div id="rj-schedule-date-wrap" class="rj-schedule-date-wrap" hidden>
-              <label class="sr-only" for="rj-schedule-date">Scheduled date</label>
-              <input type="date" id="rj-schedule-date" class="rj-schedule-date-input" aria-label="Scheduled date" title="Scheduled date" />
-            </div>
-            <button
-              id="rj-owner-toggle"
-              class="rj-owner-toggle"
-              type="button"
-              role="switch"
-              aria-checked="false"
-              aria-label="Add items to my lists"
-              title="Adding to my lists"
-            >
-              <span class="rj-owner-choice rj-owner-choice-mine" aria-hidden="true"></span>
-              <span class="rj-owner-choice rj-owner-choice-shared" aria-hidden="true"></span>
-              <span class="rj-owner-thumb" aria-hidden="true"></span>
-            </button>
-            <button id="recurring-toggle-btn" class="recurring-toggle-btn" type="button" aria-expanded="false" aria-controls="recurring-form" aria-label="Task options" title="Task options">
-              <span aria-hidden="true">&#8943;</span><span class="sr-only">Task options</span>
-            </button>
           </form>
           <div id="recurring-tools" class="recurring-tools" hidden>
             <div id="recurring-form" class="recurring-form" hidden>
@@ -160,16 +164,6 @@
           <span id="mine-ms-title" class="ms-owner-label" hidden>Mine</span>
           <header id="mine-rj-column-header" class="rj-column-header rj-only" hidden>
             <span class="rj-column-title">Mine</span>
-            <aside id="recurring-panel" class="recurring-panel rj-schedule-panel" data-rj-schedule-owner="mine" aria-label="My recurring and scheduled items" hidden>
-              <button id="recurring-panel-toggle" class="recurring-panel-toggle" type="button" aria-expanded="false" aria-controls="recurring-panel-content" aria-label="Show my recurring and scheduled items" title="Recurring and scheduled">
-                <span class="recurring-panel-toggle-copy" aria-hidden="true">&#8635;</span><span id="recurring-panel-count" class="sr-only">0</span>
-              </button>
-              <section id="recurring-panel-content" class="recurring-panel-content" hidden>
-                <div class="recurring-panel-header"><h2>Recurring &amp; scheduled</h2></div>
-                <ul id="recurring-panel-list" class="recurring-panel-list"></ul>
-                <p id="recurring-panel-empty" class="empty-msg">No recurring or scheduled items</p>
-              </section>
-            </aside>
           </header>
           <header id="shared-rj-column-header" class="rj-column-header shared-rj-column-header rj-only" hidden>
             <span class="rj-column-title">Shared</span>
@@ -186,16 +180,6 @@
           </header>
           <header id="partner-rj-column-header" class="rj-column-header rj-only" hidden>
             <span id="partner-rj-column-title" class="rj-column-title">Partner</span>
-            <aside id="partner-recurring-panel" class="recurring-panel partner-recurring-panel rj-schedule-panel" data-rj-schedule-owner="partner" aria-label="Paired user's recurring and scheduled items" hidden>
-              <button id="partner-recurring-panel-toggle" class="recurring-panel-toggle" type="button" aria-expanded="false" aria-controls="partner-recurring-panel-content" aria-label="Show paired user's recurring and scheduled items" title="Recurring and scheduled">
-                <span class="recurring-panel-toggle-copy" aria-hidden="true">&#8635;</span><span id="partner-recurring-panel-count" class="sr-only">0</span>
-              </button>
-              <section id="partner-recurring-panel-content" class="recurring-panel-content partner-recurring-panel-content" hidden>
-                <div class="recurring-panel-header"><h2>Recurring &amp; scheduled</h2></div>
-                <ul id="partner-recurring-panel-list" class="recurring-panel-list"></ul>
-                <p id="partner-recurring-panel-empty" class="empty-msg">No recurring or scheduled items</p>
-              </section>
-            </aside>
           </header>
           <section class="todo-card daily-card" data-list="daily">
             <div class="card-header">
@@ -234,6 +218,16 @@
           <section class="todo-card persistent-card irl-card mine-todo-card" data-list="persistent" id="mine-todo-card">
             <div class="card-header">
               <h2 id="persistent-list-title">My Tasks</h2>
+              <aside id="recurring-panel" class="recurring-panel rj-schedule-panel rj-only" data-rj-schedule-owner="mine" aria-label="Recurring and scheduled items">
+                <button id="recurring-panel-toggle" class="recurring-panel-toggle" type="button" aria-expanded="false" aria-controls="recurring-panel-content" aria-label="Show recurring and scheduled items" title="Recurring and scheduled">
+                  <span class="recurring-panel-toggle-copy" aria-hidden="true">&#8635;</span><span id="recurring-panel-count" class="sr-only">0</span>
+                </button>
+                <section id="recurring-panel-content" class="recurring-panel-content" hidden>
+                  <div class="recurring-panel-header"><h2>Recurring &amp; scheduled</h2></div>
+                  <ul id="recurring-panel-list" class="recurring-panel-list"></ul>
+                  <p id="recurring-panel-empty" class="empty-msg">No recurring or scheduled items</p>
+                </section>
+              </aside>
             </div>
             <ul id="persistent-list" class="task-list" aria-label="My task list"></ul>
             <p id="persistent-empty" class="empty-msg">No tasks</p>
@@ -250,6 +244,16 @@
           <section id="partner-rj-card" class="todo-card persistent-card partner-rj-card irl-card partner-todo-card rj-only" aria-labelledby="partner-rj-title" hidden>
             <div class="card-header">
               <h2 id="partner-rj-title">Partner Tasks</h2>
+              <aside id="partner-recurring-panel" class="recurring-panel partner-recurring-panel rj-schedule-panel" data-rj-schedule-owner="partner" aria-label="Paired user's recurring and scheduled items">
+                <button id="partner-recurring-panel-toggle" class="recurring-panel-toggle" type="button" aria-expanded="false" aria-controls="partner-recurring-panel-content" aria-label="Show paired user's recurring and scheduled items" title="Recurring and scheduled">
+                  <span class="recurring-panel-toggle-copy" aria-hidden="true">&#8635;</span><span id="partner-recurring-panel-count" class="sr-only">0</span>
+                </button>
+                <section id="partner-recurring-panel-content" class="recurring-panel-content partner-recurring-panel-content" hidden>
+                  <div class="recurring-panel-header"><h2>Recurring &amp; scheduled</h2></div>
+                  <ul id="partner-recurring-panel-list" class="recurring-panel-list"></ul>
+                  <p id="partner-recurring-panel-empty" class="empty-msg">No recurring or scheduled items</p>
+                </section>
+              </aside>
             </div>
             <ul id="partner-rj-list" class="task-list" aria-label="Partner's task list"></ul>
             <p id="partner-rj-empty" class="empty-msg">No tasks</p>

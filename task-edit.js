@@ -51,7 +51,12 @@ function updateEditedTask(listType, text, isTaskOptionsSubmit, targetKind = null
   const editKind = normalizeRjListKind(editState?.rjKind) || RJ_LIST_KIND_TODO;
   const taskCollection =
     editOwner === "shared" ? sharedRjState.tasks[editKind] : getActiveListSet().tasks[listType];
-  const task = taskCollection.find((item) => item.id === editState.taskId);
+  let task = taskCollection ? taskCollection.find((item) => item.id === editState.taskId) : null;
+
+  if (!task && editOwner === "shared") {
+    const fallbackKind = editKind === RJ_LIST_KIND_SCHEDULE ? RJ_LIST_KIND_TODO : RJ_LIST_KIND_SCHEDULE;
+    task = (sharedRjState.tasks[fallbackKind] || []).find((item) => item.id === editState.taskId);
+  }
 
   if (!task) {
     cancelTaskEdit(listType);
@@ -59,7 +64,7 @@ function updateEditedTask(listType, text, isTaskOptionsSubmit, targetKind = null
   }
 
   const nextOwner = isRjEdit ? rjComposerOwner : editOwner;
-  const nextKind = normalizeRjListKind(targetKind) || editKind;
+  const nextKind = normalizeRjListKind(targetKind || (isRjEdit ? activeRjComposerKind : null)) || editKind;
   if (isRjEdit && nextOwner === "shared" && !getAcceptedPairing()) {
     setFormError(listType, "Pair with another user before moving shared items.");
     return;
@@ -71,20 +76,50 @@ function updateEditedTask(listType, text, isTaskOptionsSubmit, targetKind = null
 
   task.text = text;
 
-  if (usesRecurringTaskGrouping(listType) && isTaskOptionsSubmit) {
-    applyRjTaskOptions(task, !wasRecurring && !wasScheduled);
-  } else if (usesRecurringTaskGrouping(listType) && (wasRecurring || wasScheduled)) {
-    clearTaskTimingFields(task);
-  }
-
   if (isRjEdit) {
     task.irlKind = nextKind;
+
+    if (nextKind === RJ_LIST_KIND_SCHEDULE) {
+      const chosenDate = els.rjScheduleDate?.value || task.showOnDate || dailyPeriodId(new Date());
+      task.showOnDate = chosenDate;
+
+      if (usesRecurringTaskGrouping(listType) && isTaskOptionsSubmit && recurringCreateMode) {
+        applyRjTaskOptions(task, !wasRecurring && !wasScheduled);
+        task.showOnDate = chosenDate;
+      } else if (!isRecurringTask(task)) {
+        delete task.recurring;
+        delete task.intervalDays;
+        delete task.showDays;
+        delete task.recurringStartDate;
+        delete task.nextDueDate;
+      }
+    } else {
+      if (usesRecurringTaskGrouping(listType) && isTaskOptionsSubmit && recurringCreateMode) {
+        applyRjTaskOptions(task, !wasRecurring && !wasScheduled);
+      } else {
+        clearTaskTimingFields(task);
+      }
+    }
+
     const destination = nextOwner === "shared"
       ? sharedRjState.tasks[nextKind]
       : getActiveListSet().tasks[listType];
-    if (destination !== taskCollection) {
-      taskCollection.splice(taskCollection.indexOf(task), 1);
+    const sourceCollection = editOwner === "shared"
+      ? (sharedRjState.tasks[editKind]?.includes(task) ? sharedRjState.tasks[editKind] : sharedRjState.tasks[editKind === "schedule" ? "todo" : "schedule"])
+      : getActiveListSet().tasks[listType];
+
+    if (destination !== sourceCollection && sourceCollection) {
+      const idx = sourceCollection.indexOf(task);
+      if (idx !== -1) {
+        sourceCollection.splice(idx, 1);
+      }
       destination.push(task);
+    }
+  } else {
+    if (usesRecurringTaskGrouping(listType) && isTaskOptionsSubmit) {
+      applyRjTaskOptions(task, !wasRecurring && !wasScheduled);
+    } else if (usesRecurringTaskGrouping(listType) && (wasRecurring || wasScheduled)) {
+      clearTaskTimingFields(task);
     }
   }
 
@@ -188,23 +223,43 @@ function setTaskFormEditingState(listType, isEditing) {
 }
 
 function prepareTaskEditMode(listType, task, editContext = {}) {
-  if (isMobileTaskView()) return;
   const taskId = task.id;
 
   if (editState && !isEditingTask(listType, taskId)) {
     finishTaskEdit(editState.listType);
   }
 
+  const isRj = state.activeListSet === "rj" && listType === "persistent";
+  const rjKind = normalizeRjListKind(
+    editContext.rjKind || task?.irlKind || (isRjScheduleTask(task) ? RJ_LIST_KIND_SCHEDULE : RJ_LIST_KIND_TODO)
+  );
+
   editState = {
     listSetId: state.activeListSet,
     listType,
     taskId,
-    owner: editContext.owner === "shared" ? "shared" : "mine",
-    rjKind: normalizeRjListKind(editContext.rjKind || task?.irlKind),
+    owner: editContext.owner === "shared" ? "shared" : (task._owner === "shared" ? "shared" : "mine"),
+    rjKind,
   };
 
-  if (state.activeListSet === "rj") {
+  if (isRj) {
     rjComposerOwner = editState.owner;
+    activeRjComposerKind = rjKind;
+
+    if (rjKind === RJ_LIST_KIND_SCHEDULE) {
+      const taskDate = task.showOnDate || dailyPeriodId(new Date());
+      if (els.rjScheduleDate) {
+        els.rjScheduleDate.value = taskDate;
+      }
+      if (els.rjScheduleDateWrap) {
+        els.rjScheduleDateWrap.hidden = false;
+      }
+    } else {
+      if (els.rjScheduleDateWrap) {
+        els.rjScheduleDateWrap.hidden = true;
+      }
+    }
+    updateRjTargetButtons();
   }
 
   const input = getTaskInput(listType);
@@ -216,8 +271,13 @@ function prepareTaskEditMode(listType, task, editContext = {}) {
   }
 
   if (usesRecurringTaskGrouping(listType)) {
-    setRecurringCreateMode(isRecurringTask(task) || isScheduledOneTimeTask(task));
-    hydrateRecurringControlsFromTask(task);
+    const isRecur = isRecurringTask(task);
+    setRecurringCreateMode(isRecur);
+    if (isRecur) {
+      hydrateRecurringControlsFromTask(task);
+    } else {
+      closeRecurringForm({ immediate: true });
+    }
   } else {
     updateTaskInputPlaceholder(listType);
   }
@@ -227,9 +287,13 @@ function prepareTaskEditMode(listType, task, editContext = {}) {
 
 function focusTaskEditInput(listType) {
   const input = getTaskInput(listType);
+  if (!input) return;
   window.requestAnimationFrame(() => {
     input.focus();
     input.select();
+    if (typeof isMobileTaskView === "function" && isMobileTaskView()) {
+      input.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   });
 }
 
@@ -245,6 +309,17 @@ function finishTaskEdit(listType = editState?.listType) {
 
   if (usesRecurringTaskGrouping(listType)) {
     closeRecurringForm();
+  }
+
+  if (state.activeListSet === "rj" && listType === "persistent") {
+    activeRjComposerKind = RJ_LIST_KIND_TODO;
+    if (els.rjScheduleDateWrap) {
+      els.rjScheduleDateWrap.hidden = true;
+    }
+    if (els.rjScheduleDate) {
+      els.rjScheduleDate.value = dailyPeriodId(new Date());
+    }
+    updateRjTargetButtons();
   }
 
   setTaskFormEditingState(listType, false);

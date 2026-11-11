@@ -66,12 +66,16 @@ function renderActiveLayout() {
     els.partnerRjScheduleCard.hidden = true;
     if (els.sharedRjColumnHeader) els.sharedRjColumnHeader.hidden = true;
     if (els.partnerRjColumnHeader) els.partnerRjColumnHeader.hidden = true;
+    if (els.recurringPanel) els.recurringPanel.hidden = false;
+    if (els.partnerRecurringPanel) els.partnerRecurringPanel.hidden = false;
   } else {
     els.mineRjScheduleCard.hidden = true;
     els.sharedRjTodoCard.hidden = true;
     els.sharedRjScheduleCard.hidden = true;
     els.partnerRjCard.hidden = true;
     els.partnerRjScheduleCard.hidden = true;
+    if (els.recurringPanel) els.recurringPanel.hidden = true;
+    if (els.partnerRecurringPanel) els.partnerRecurringPanel.hidden = true;
   }
 
   els.mineMsTitle.hidden = !hasPairedMsLists;
@@ -174,19 +178,38 @@ function renderMineRjScheduleList() {
   });
 
   // 2. Shared scheduled tasks
-  const sharedTasks = (hasPairing ? (sharedRjState.tasks.schedule || []) : []).map((t) => {
-    t._owner = "shared";
-    return t;
-  });
+  const sharedScheduleList = [
+    ...(sharedRjState.tasks.schedule || []).filter((t) => !isRecurringTask(t)),
+    ...(sharedRjState.tasks.todo || []).filter(isRjScheduleTask),
+  ];
+  const seenSharedIds = new Set();
+  const sharedTasks = (hasPairing ? sharedScheduleList : [])
+    .filter((t) => {
+      if (seenSharedIds.has(t.id)) return false;
+      seenSharedIds.add(t.id);
+      return true;
+    })
+    .map((t) => {
+      t._owner = "shared";
+      return t;
+    });
 
   // 3. Partner scheduled tasks (read-only)
-  const partnerTasks = (hasPairing && partnerState?.listSets?.rj?.tasks?.persistent
-    ? partnerState.listSets.rj.tasks.persistent.filter(isRjScheduleTask)
-    : []
-  ).map((t) => {
-    t._owner = "partner";
-    return t;
-  });
+  const partnerScheduleList = [
+    ...(partnerState?.listSets?.rj?.tasks?.schedule || []).filter((t) => !isRecurringTask(t)),
+    ...(partnerState?.listSets?.rj?.tasks?.persistent || []).filter(isRjScheduleTask),
+  ];
+  const seenPartnerIds = new Set();
+  const partnerTasks = (hasPairing ? partnerScheduleList : [])
+    .filter((t) => {
+      if (seenPartnerIds.has(t.id)) return false;
+      seenPartnerIds.add(t.id);
+      return true;
+    })
+    .map((t) => {
+      t._owner = "partner";
+      return t;
+    });
 
   const allScheduled = [...myTasks, ...sharedTasks, ...partnerTasks];
 
@@ -322,25 +345,8 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
     copy.textContent = task.text;
     label.append(checkbox, copy);
 
-    // Badges & Chips
-    const acceptedPairing = getAcceptedPairing();
-    const hasPairing = Boolean(acceptedPairing);
-    const partnerName = getPairingDisplayName(acceptedPairing) || "Partner";
-
-    if (taskOwner === "shared") {
-      const sharedBadge = document.createElement("span");
-      sharedBadge.className = "task-owner-badge owner-shared";
-      sharedBadge.textContent = "\uD83D\uDC65 Shared";
-      sharedBadge.title = "Shared with partner";
-      label.appendChild(sharedBadge);
-    } else if (kind === RJ_LIST_KIND_SCHEDULE && hasPairing) {
-      const ownerBadge = document.createElement("span");
-      ownerBadge.className = `task-owner-badge owner-${taskOwner}`;
-      ownerBadge.textContent = taskOwner === "mine" ? "You" : partnerName;
-      label.appendChild(ownerBadge);
-    }
-
-    if (kind === RJ_LIST_KIND_SCHEDULE || isRjScheduleTask(task)) {
+    // Schedule date chip
+    if (kind === RJ_LIST_KIND_SCHEDULE) {
       const dateId = getTaskAppearanceDateId(task);
       const todayId = dailyPeriodId(new Date());
       const dateChip = document.createElement("span");
@@ -804,10 +810,12 @@ function renderPartnerRjList() {
     });
 
   // Include shared to-dos in partner list as well
-  const sharedTasks = (sharedRjState.tasks.todo || []).map((t) => {
-    t._owner = "shared";
-    return t;
-  });
+  const sharedTasks = (sharedRjState.tasks.todo || [])
+    .filter(isRjTodoTask)
+    .map((t) => {
+      t._owner = "shared";
+      return t;
+    });
 
   const combined = [...partnerTasks, ...sharedTasks];
   const orderedTasks = orderTasksForList("persistent", combined);
@@ -868,13 +876,6 @@ function renderPartnerRjList() {
     copy.className = "task-copy";
     copy.textContent = task.text;
     label.append(checkbox, copy);
-
-    if (isShared) {
-      const badge = document.createElement("span");
-      badge.className = "task-owner-badge owner-shared";
-      badge.textContent = "\uD83D\uDC65 Shared";
-      label.appendChild(badge);
-    }
 
     let repeatBadge = null;
     if (isRecurringTask(task)) {
@@ -978,6 +979,61 @@ function renderPartnerRecurringPanel(tasks) {
     if (status) {
       item.appendChild(status);
     }
+
+    if (task._owner === "shared") {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "task-action-btn delete-btn recurring-summary-delete";
+      deleteBtn.setAttribute("aria-label", `Delete shared task: ${task.text}`);
+      deleteBtn.title = "Delete shared task";
+      deleteBtn.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
+
+      let didDelete = false;
+      const deleteSharedTask = () => {
+        if (didDelete || isReadOnlyView()) return;
+        didDelete = true;
+        let deleted = false;
+        ["todo", "schedule"].forEach((kind) => {
+          const list = sharedRjState.tasks[kind];
+          if (Array.isArray(list)) {
+            const idx = list.findIndex((t) => t.id === task.id);
+            if (idx >= 0) {
+              list.splice(idx, 1);
+              deleted = true;
+            }
+          }
+        });
+        if (deleted) {
+          recordTaskDeletion(sharedRjState, task.id);
+          saveSharedRjState();
+        }
+        renderAll();
+      };
+
+      deleteBtn.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0 || deleteBtn.disabled) return;
+        event.preventDefault();
+        event.stopPropagation();
+        deleteSharedTask();
+      });
+
+      deleteBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        deleteSharedTask();
+      });
+      item.appendChild(deleteBtn);
+    }
+
+    item.tabIndex = 0;
+    item.addEventListener("click", (event) => {
+      if (event.target.closest(".task-action-btn, .delete-btn, .recurring-summary-delete")) {
+        return;
+      }
+      const willOpen = !item.classList.contains("actions-open");
+      dismissMobileTaskActions(willOpen ? item : null);
+      item.classList.toggle("actions-open", willOpen);
+    });
+
     els.partnerRecurringPanelList.appendChild(item);
   });
 
@@ -1010,6 +1066,61 @@ function renderSharedRecurringPanel(tasks) {
     if (status) {
       item.appendChild(status);
     }
+
+    if (!isReadOnlyView()) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "task-action-btn delete-btn recurring-summary-delete";
+      deleteBtn.setAttribute("aria-label", `Delete shared task: ${task.text}`);
+      deleteBtn.title = "Delete shared task";
+      deleteBtn.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
+
+      let didDelete = false;
+      const deleteSharedTask = () => {
+        if (didDelete || isReadOnlyView()) return;
+        didDelete = true;
+        let deleted = false;
+        ["todo", "schedule"].forEach((kind) => {
+          const list = sharedRjState.tasks[kind];
+          if (Array.isArray(list)) {
+            const idx = list.findIndex((t) => t.id === task.id);
+            if (idx >= 0) {
+              list.splice(idx, 1);
+              deleted = true;
+            }
+          }
+        });
+        if (deleted) {
+          recordTaskDeletion(sharedRjState, task.id);
+          saveSharedRjState();
+        }
+        renderAll();
+      };
+
+      deleteBtn.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0 || deleteBtn.disabled) return;
+        event.preventDefault();
+        event.stopPropagation();
+        deleteSharedTask();
+      });
+
+      deleteBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        deleteSharedTask();
+      });
+      item.appendChild(deleteBtn);
+    }
+
+    item.tabIndex = 0;
+    item.addEventListener("click", (event) => {
+      if (event.target.closest(".task-action-btn, .delete-btn, .recurring-summary-delete")) {
+        return;
+      }
+      const willOpen = !item.classList.contains("actions-open");
+      dismissMobileTaskActions(willOpen ? item : null);
+      item.classList.toggle("actions-open", willOpen);
+    });
+
     els.sharedRecurringPanelList.appendChild(item);
   });
 
@@ -1102,7 +1213,7 @@ function renderList(listType) {
       return t;
     });
 
-    const sharedTasks = (hasPairing ? (sharedRjState.tasks.todo || []) : []).map((t) => {
+    const sharedTasks = (hasPairing ? (sharedRjState.tasks.todo || []).filter(isRjTodoTask) : []).map((t) => {
       t._owner = "shared";
       return t;
     });
@@ -1447,8 +1558,27 @@ function renderList(listType) {
 
 function renderRecurringPanel() {
   const isReadOnly = isReadOnlyView();
-  const scheduledTasks =
+  const acceptedPairing = getAcceptedPairing();
+  const hasPairing = Boolean(acceptedPairing);
+
+  const myTasks =
     state.activeListSet === "rj" ? getScheduledPanelTasks(getActiveListSet().tasks.persistent) : [];
+  myTasks.forEach((t) => {
+    t._owner = "mine";
+  });
+
+  const sharedTasks =
+    state.activeListSet === "rj" && hasPairing
+      ? getScheduledPanelTasks([
+          ...(sharedRjState.tasks.schedule || []),
+          ...(sharedRjState.tasks.todo || []),
+        ]).map((t) => {
+          t._owner = "shared";
+          return t;
+        })
+      : [];
+
+  const scheduledTasks = [...myTasks, ...sharedTasks].sort(compareScheduledPanelTasks);
 
   els.recurringPanelCount.textContent = String(scheduledTasks.length);
   els.recurringPanelList.innerHTML = "";
@@ -1483,13 +1613,9 @@ function renderRecurringPanel() {
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "task-action-btn delete-btn recurring-summary-delete";
-    deleteBtn.setAttribute("aria-label", `Remove scheduled task: ${task.text}`);
-    deleteBtn.title = "Remove scheduled task";
-
-    const trashIcon = document.createElement("span");
-    trashIcon.className = "trash-icon";
-    trashIcon.setAttribute("aria-hidden", "true");
-    deleteBtn.appendChild(trashIcon);
+    deleteBtn.setAttribute("aria-label", `Delete: ${task.text}`);
+    deleteBtn.title = "Delete task";
+    deleteBtn.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
     let didDelete = false;
 
     const deleteScheduledTask = () => {
@@ -1502,12 +1628,29 @@ function renderRecurringPanel() {
       }
 
       didDelete = true;
-      if (!removeTaskFromList("persistent", task.id)) {
-        renderAll();
-        return;
+      if (task._owner === "shared") {
+        let deleted = false;
+        ["todo", "schedule"].forEach((kind) => {
+          const list = sharedRjState.tasks[kind];
+          if (Array.isArray(list)) {
+            const idx = list.findIndex((t) => t.id === task.id);
+            if (idx >= 0) {
+              list.splice(idx, 1);
+              deleted = true;
+            }
+          }
+        });
+        if (deleted) {
+          recordTaskDeletion(sharedRjState, task.id);
+          saveSharedRjState();
+        }
+      } else {
+        if (!removeTaskFromList("persistent", task.id)) {
+          renderAll();
+          return;
+        }
+        saveState();
       }
-
-      saveState();
       renderAll();
     };
 
@@ -1520,6 +1663,14 @@ function renderRecurringPanel() {
         return;
       }
 
+      if (task._owner === "shared") {
+        setTaskCompletionState(task, false);
+        updateRecurringTaskCompletionFields(task, false);
+        saveSharedRjState();
+        renderAll();
+        return;
+      }
+
       const beforePositions = captureTaskPositions("persistent");
       moveTaskAfterDoneChange("persistent", task.id, false);
       saveState();
@@ -1527,8 +1678,8 @@ function renderRecurringPanel() {
       animateListReflow("persistent", beforePositions);
     };
 
+    li.tabIndex = 0;
     if (!isReadOnly && isRecurringTask(task) && task.done) {
-      li.tabIndex = 0;
       li.setAttribute("role", "button");
       li.setAttribute("aria-label", `Show recurring task on To-Do list: ${task.text}`);
       li.title = "Show on To-Do list";
@@ -1550,15 +1701,21 @@ function renderRecurringPanel() {
     });
 
     li.addEventListener("click", (event) => {
-      if (event.target.closest(".task-action-btn")) {
+      if (event.target.closest(".task-action-btn, .delete-btn, .recurring-summary-delete")) {
         return;
       }
 
-      restoreRecurringTask();
+      if (isRecurringTask(task) && task.done) {
+        restoreRecurringTask();
+      } else {
+        const willOpen = !li.classList.contains("actions-open");
+        dismissMobileTaskActions(willOpen ? li : null);
+        li.classList.toggle("actions-open", willOpen);
+      }
     });
 
     li.addEventListener("keydown", (event) => {
-      if (event.target.closest(".task-action-btn") || !["Enter", " "].includes(event.key)) {
+      if (event.target.closest(".task-action-btn, .delete-btn, .recurring-summary-delete") || !["Enter", " "].includes(event.key)) {
         return;
       }
 
@@ -1585,7 +1742,11 @@ function renderRecurringPanel() {
 function renderRjSchedulePanels() {
   renderRecurringPanel();
   renderSharedRecurringPanel([...sharedRjState.tasks.todo, ...sharedRjState.tasks.schedule]);
-  renderPartnerRecurringPanel(partnerState?.listSets?.rj?.tasks?.persistent || []);
+  const partnerTasks = [
+    ...(partnerState?.listSets?.rj?.tasks?.schedule || []),
+    ...(partnerState?.listSets?.rj?.tasks?.persistent || []),
+  ];
+  renderPartnerRecurringPanel(partnerTasks);
 }
 
 // Mobile taps toggle completion; movement is reserved for scrolling.
@@ -1594,7 +1755,7 @@ function isMobileTaskView() {
 }
 
 function dismissMobileTaskActions(except = null) {
-  document.querySelectorAll(".task-item.actions-visible, .task-item.actions-open").forEach((item) => {
+  document.querySelectorAll(".task-item.actions-visible, .task-item.actions-open, .recurring-summary-item.actions-open").forEach((item) => {
     if (item === except) return;
     item.classList.remove("actions-visible", "actions-open");
     item.querySelector(".task-actions-toggle")?.setAttribute("aria-expanded", "false");
@@ -1649,7 +1810,7 @@ function wireMobileTaskDismissal() {
     if (event.matches && editState) cancelTaskEdit();
   });
   document.addEventListener("pointerdown", (event) => {
-    if (isMobileTaskView()) dismissMobileTaskActions(event.target.closest(".task-item"));
+    if (isMobileTaskView()) dismissMobileTaskActions(event.target.closest(".task-item, .recurring-summary-item"));
   }, true);
   document.addEventListener("scroll", () => {
     if (isMobileTaskView()) dismissMobileTaskActions();

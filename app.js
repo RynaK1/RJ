@@ -698,13 +698,51 @@ function wireEvents() {
   }
 
   els.rjTargetButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      activeRjComposerKind = btn.dataset.rjKind;
+    btn.addEventListener("click", (event) => {
+      const clickedKind = btn.dataset.rjKind;
+      const datePickerWasHidden = els.rjScheduleDateWrap ? els.rjScheduleDateWrap.hidden : true;
+
+      if (clickedKind === RJ_LIST_KIND_SCHEDULE && datePickerWasHidden) {
+        event.preventDefault();
+        activeRjComposerKind = RJ_LIST_KIND_SCHEDULE;
+        if (els.rjScheduleDateWrap) {
+          els.rjScheduleDateWrap.hidden = false;
+        }
+        updateRjTargetButtons();
+        if (els.rjScheduleDate) {
+          els.rjScheduleDate.focus();
+        }
+        return;
+      }
+
+      if (clickedKind === RJ_LIST_KIND_TODO && activeRjComposerKind === RJ_LIST_KIND_SCHEDULE) {
+        activeRjComposerKind = RJ_LIST_KIND_TODO;
+        if (els.rjScheduleDateWrap) {
+          els.rjScheduleDateWrap.hidden = true;
+        }
+        updateRjTargetButtons();
+        return;
+      }
+
+      activeRjComposerKind = clickedKind;
       if (els.rjScheduleDateWrap) {
         els.rjScheduleDateWrap.hidden = activeRjComposerKind !== RJ_LIST_KIND_SCHEDULE;
       }
+      updateRjTargetButtons();
     });
   });
+
+  if (els.rjScheduleDateWrap) {
+    els.rjScheduleDateWrap.addEventListener("click", () => {
+      if (els.rjScheduleDate && typeof els.rjScheduleDate.showPicker === "function") {
+        try {
+          els.rjScheduleDate.showPicker();
+        } catch {
+          els.rjScheduleDate.focus();
+        }
+      }
+    });
+  }
 
   els.schedmsAddForm.addEventListener("submit", handleSchedmsAddSubmit);
   wireSchedmsHorizonTabs();
@@ -1148,6 +1186,11 @@ function handleTaskFormSubmit(form, submitter = null) {
       kind,
       chosenDate
     );
+    activeRjComposerKind = RJ_LIST_KIND_TODO;
+    if (els.rjScheduleDateWrap) {
+      els.rjScheduleDateWrap.hidden = true;
+    }
+    updateRjTargetButtons();
     return;
   }
 
@@ -1166,8 +1209,8 @@ function addNewRjItem(text, owner, kind, chosenDate = null) {
   const taskId = crypto.randomUUID();
   const task = createRjListTask(taskId, text, normalizedKind);
 
-  if (normalizedKind === RJ_LIST_KIND_SCHEDULE && chosenDate) {
-    task.showOnDate = chosenDate;
+  if (normalizedKind === RJ_LIST_KIND_SCHEDULE) {
+    task.showOnDate = chosenDate || dailyPeriodId(new Date());
   }
 
   if (normalizedOwner === "shared") {
@@ -1840,6 +1883,9 @@ function updateRjTargetButtons() {
   els.rjTargetButtons.forEach((button) => {
     button.hidden = false;
     button.disabled = false;
+    const isTargetActive = button.dataset.rjKind === activeRjComposerKind;
+    button.classList.toggle("active", isTargetActive);
+    button.setAttribute("aria-pressed", String(isTargetActive));
     const kindLabel = button.dataset.rjKind === RJ_LIST_KIND_SCHEDULE ? "schedule" : "to-do list";
     const ownerLabel = rjComposerOwner === "shared" ? "shared" : "my";
     const actionLabel = `${isEditing ? "Save to" : "Add to"} ${ownerLabel} ${kindLabel}`;
@@ -1848,10 +1894,18 @@ function updateRjTargetButtons() {
   });
 
   const isShared = rjComposerOwner === "shared";
-  els.rjOwnerToggle.hidden = false;
+  els.rjOwnerToggle.hidden = !hasPairing;
   els.rjOwnerToggle.disabled = !hasPairing;
   els.rjOwnerToggle.classList.toggle("shared", isShared);
   els.rjOwnerToggle.setAttribute("aria-checked", String(isShared));
+  const ownerIcon = els.rjOwnerToggle.querySelector(".rj-owner-icon");
+  const ownerLabel = els.rjOwnerToggle.querySelector(".rj-owner-label");
+  if (ownerIcon) {
+    ownerIcon.textContent = isShared ? "👥" : "👤";
+  }
+  if (ownerLabel) {
+    ownerLabel.textContent = isShared ? "Shared" : "Mine";
+  }
   els.rjOwnerToggle.setAttribute(
     "aria-label",
     hasPairing ? `Add items to ${isShared ? "shared" : "my"} lists` : "Pair an account to use shared lists"
@@ -1872,17 +1926,36 @@ function toggleRjComposerOwner() {
 }
 
 function isRjScheduleTask(task) {
-  const explicitKind = normalizeRjListKind(task?.irlKind);
-
-  if (explicitKind) {
-    return explicitKind === RJ_LIST_KIND_SCHEDULE;
+  if (isRecurringTask(task)) {
+    return false;
   }
 
-  return isRecurringTask(task) || isScheduledOneTimeTask(task);
+  if (isScheduledOneTimeTask(task)) {
+    return true;
+  }
+
+  const explicitKind = normalizeRjListKind(task?.irlKind);
+  return explicitKind === RJ_LIST_KIND_SCHEDULE;
 }
 
 function isRjTodoTask(task) {
-  return !isRjScheduleTask(task);
+  if (isRecurringTask(task)) {
+    return true;
+  }
+
+  const explicitKind = normalizeRjListKind(task?.irlKind);
+  if (explicitKind === RJ_LIST_KIND_SCHEDULE) {
+    return false;
+  }
+
+  if (isScheduledOneTimeTask(task)) {
+    const showOnDate = normalizeDateId(task?.showOnDate);
+    if (showOnDate && showOnDate > dailyPeriodId(new Date())) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function normalizeCompletionOrder(value) {
@@ -2062,7 +2135,12 @@ function runTaskEditAnimation(itemEl, listType, task, onDone, editContext = {}) 
   const sourceCopy = itemEl.querySelector(".task-copy");
   const formEl = getTaskEditForm(listType);
 
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !targetInput || !sourceCopy) {
+  if (
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    !targetInput ||
+    !sourceCopy ||
+    (typeof isMobileTaskView === "function" && isMobileTaskView())
+  ) {
     prepareTaskEditMode(listType, task, editContext);
     renderAll();
     onDone();
