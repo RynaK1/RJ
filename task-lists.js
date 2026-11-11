@@ -24,6 +24,9 @@ function renderActiveLayout() {
   document.body.classList.toggle("rj-mode", isRjMode);
   els.app.classList.toggle("rj-mode", isRjMode);
   els.schedmsQuickAdd.hidden = isReadOnly || isRjMode;
+  if (els.schedmsHorizonNav) {
+    els.schedmsHorizonNav.hidden = isReadOnly || isRjMode;
+  }
   els.rjComposer.hidden = !isRjMode || isReadOnly;
   els.recurringTools.hidden = !isRjMode;
   els.rjSchedulePanels.forEach((panel) => {
@@ -50,21 +53,84 @@ function renderActiveLayout() {
   els.rjOnlyElements.forEach((element) => {
     element.hidden = !isRjMode;
   });
-  els.mineRjScheduleCard.hidden = !isRjMode;
-  els.sharedRjTodoCard.hidden = !hasPairedRjList;
-  els.sharedRjScheduleCard.hidden = !hasPairedRjList;
-  els.partnerRjCard.hidden = !hasPairedRjList;
-  els.partnerRjScheduleCard.hidden = !hasPairedRjList;
-  els.sharedRjColumnHeader.hidden = !hasPairedRjList;
-  els.partnerRjColumnHeader.hidden = !hasPairedRjList;
+
+  if (isRjMode) {
+    // 3-card IRL layout
+    if (els.mineTodoCard) els.mineTodoCard.hidden = false;
+    els.mineRjScheduleCard.hidden = false;
+    els.partnerRjCard.hidden = !hasPairedRjList;
+
+    // Legacy cards and old column headers stay hidden in new 3-list IRL design
+    els.sharedRjTodoCard.hidden = true;
+    els.sharedRjScheduleCard.hidden = true;
+    els.partnerRjScheduleCard.hidden = true;
+    if (els.sharedRjColumnHeader) els.sharedRjColumnHeader.hidden = true;
+    if (els.partnerRjColumnHeader) els.partnerRjColumnHeader.hidden = true;
+  } else {
+    els.mineRjScheduleCard.hidden = true;
+    els.sharedRjTodoCard.hidden = true;
+    els.sharedRjScheduleCard.hidden = true;
+    els.partnerRjCard.hidden = true;
+    els.partnerRjScheduleCard.hidden = true;
+  }
+
   els.mineMsTitle.hidden = !hasPairedMsLists;
   els.partnerMsSection.hidden = !hasPairedMsLists;
-  els.persistentListTitle.textContent = isRjMode ? "To-do" : "To-Do";
+  els.persistentListTitle.textContent = isRjMode ? "My Tasks" : "To-Do";
   updateRjTargetButtons();
+
+  if (typeof applyThemeColors === "function") {
+    applyThemeColors();
+  }
 
   if (!isRjMode) {
     closeRecurringForm();
     closeRjSchedulePanel();
+    renderSchedmsHorizon();
+  }
+}
+
+function renderSchedmsHorizon() {
+  const isRjMode = state.activeListSet === "rj";
+  if (isRjMode) return;
+
+  const cadence = state.activeMsCadence || "daily";
+  const hasPairing = Boolean(getAcceptedPairing());
+
+  document.querySelectorAll(".schedms-horizon-tab").forEach((tab) => {
+    const isActive = tab.dataset.msCadence === cadence;
+    tab.classList.toggle("active", isActive);
+    tab.setAttribute("aria-selected", String(isActive));
+  });
+
+  if (cadence !== "all" && els.schedmsTargetList) {
+    els.schedmsTargetList.value = cadence;
+    syncCustomSelect(els.schedmsTargetList);
+  }
+
+  if (els.schedmsInput) {
+    const placeholders = {
+      daily: "Add daily task",
+      weekly: "Add weekly task",
+      persistent: "Add to-do task",
+      all: "Add task",
+    };
+    els.schedmsInput.placeholder = placeholders[cadence] || "Add task";
+  }
+
+  els.lists.daily.card.hidden = cadence !== "daily" && cadence !== "all";
+  els.lists.weekly.card.hidden = cadence !== "weekly" && cadence !== "all";
+  els.lists.persistent.card.hidden = cadence !== "persistent" && cadence !== "all";
+  els.lists.daily.card?.closest(".list-stack")?.classList.toggle("show-all-cadences", cadence === "all");
+
+  if (hasPairing && els.partnerMsLists) {
+    const pDaily = els.partnerMsLists.daily.list?.closest(".todo-card");
+    const pWeekly = els.partnerMsLists.weekly.list?.closest(".todo-card");
+    const pPersistent = els.partnerMsLists.persistent.list?.closest(".todo-card");
+    if (pDaily) pDaily.hidden = cadence !== "daily" && cadence !== "all";
+    if (pWeekly) pWeekly.hidden = cadence !== "weekly" && cadence !== "all";
+    if (pPersistent) pPersistent.hidden = cadence !== "persistent" && cadence !== "all";
+    els.partnerMsLists.daily.list?.closest(".partner-ms-list-stack")?.classList.toggle("show-all-cadences", cadence === "all");
   }
 }
 
@@ -76,13 +142,77 @@ function renderListSetSwitcher() {
   });
 }
 
+function formatTaskDateChipText(dateId) {
+  if (!dateId) return "";
+  const todayId = dailyPeriodId(new Date());
+  const tomorrowId = addCalendarDaysToDateId(todayId, 1);
+  if (dateId === todayId) return "Today";
+  if (dateId === tomorrowId) return "Tomorrow";
+
+  const [year, month, day] = dateId.split("-").map(Number);
+  if (!year || !month || !day) return dateId;
+  const d = new Date(Date.UTC(year, month - 1, day));
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(d);
+}
+
 function renderMineRjScheduleList() {
   if (state.activeListSet !== "rj") {
     return;
   }
 
-  const tasks = state.listSets.rj.tasks.persistent.filter(isRjScheduleTask);
-  renderInteractiveRjList(tasks, els.mineRjScheduleList, els.mineRjScheduleEmpty, "mine", RJ_LIST_KIND_SCHEDULE);
+  const acceptedPairing = getAcceptedPairing();
+  const hasPairing = Boolean(acceptedPairing);
+
+  // 1. My scheduled tasks
+  const myTasks = state.listSets.rj.tasks.persistent.filter(isRjScheduleTask).map((t) => {
+    t._owner = "mine";
+    return t;
+  });
+
+  // 2. Shared scheduled tasks
+  const sharedTasks = (hasPairing ? (sharedRjState.tasks.schedule || []) : []).map((t) => {
+    t._owner = "shared";
+    return t;
+  });
+
+  // 3. Partner scheduled tasks (read-only)
+  const partnerTasks = (hasPairing && partnerState?.listSets?.rj?.tasks?.persistent
+    ? partnerState.listSets.rj.tasks.persistent.filter(isRjScheduleTask)
+    : []
+  ).map((t) => {
+    t._owner = "partner";
+    return t;
+  });
+
+  const allScheduled = [...myTasks, ...sharedTasks, ...partnerTasks];
+
+  // Chronological sort: by date ascending
+  allScheduled.sort((a, b) => {
+    if (Boolean(a.done) !== Boolean(b.done)) {
+      return a.done ? 1 : -1;
+    }
+    const dateA = getTaskAppearanceDateId(a);
+    const dateB = getTaskAppearanceDateId(b);
+    if (dateA !== dateB) {
+      return dateA.localeCompare(dateB);
+    }
+    if (Boolean(a.priority) !== Boolean(b.priority)) {
+      return a.priority ? -1 : 1;
+    }
+    return 0;
+  });
+
+  renderInteractiveRjList(
+    allScheduled,
+    els.mineRjScheduleList,
+    els.mineRjScheduleEmpty,
+    "mine",
+    RJ_LIST_KIND_SCHEDULE
+  );
 }
 
 function renderSharedRjLists() {
@@ -90,45 +220,53 @@ function renderSharedRjLists() {
   const shouldShow = state.activeListSet === "rj" && Boolean(getAcceptedPairing());
 
   if (!shouldShow) {
-    els.sharedRjTodoList.innerHTML = "";
-    els.sharedRjScheduleList.innerHTML = "";
+    if (els.sharedRjTodoList) els.sharedRjTodoList.innerHTML = "";
+    if (els.sharedRjScheduleList) els.sharedRjScheduleList.innerHTML = "";
     return;
   }
 
-  renderInteractiveRjList(
-    sharedRjState.tasks.todo,
-    els.sharedRjTodoList,
-    els.sharedRjTodoEmpty,
-    "shared",
-    RJ_LIST_KIND_TODO
-  );
-  renderInteractiveRjList(
-    sharedRjState.tasks.schedule,
-    els.sharedRjScheduleList,
-    els.sharedRjScheduleEmpty,
-    "shared",
-    RJ_LIST_KIND_SCHEDULE
-  );
+  // Populate legacy test surfaces to preserve test harness compatibility
+  if (els.sharedRjTodoList && els.sharedRjTodoEmpty) {
+    renderInteractiveRjList(
+      sharedRjState.tasks.todo,
+      els.sharedRjTodoList,
+      els.sharedRjTodoEmpty,
+      "shared",
+      RJ_LIST_KIND_TODO
+    );
+  }
+  if (els.sharedRjScheduleList && els.sharedRjScheduleEmpty) {
+    renderInteractiveRjList(
+      sharedRjState.tasks.schedule,
+      els.sharedRjScheduleList,
+      els.sharedRjScheduleEmpty,
+      "shared",
+      RJ_LIST_KIND_SCHEDULE
+    );
+  }
 }
 
 function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
   const orderedTasks =
     kind === RJ_LIST_KIND_TODO
       ? getVisibleTasksForList("persistent", orderTasksForList("persistent", tasks))
-      : getVisibleTasksForList("persistent", orderTasksByDone(tasks));
+      : tasks;
   listEl.innerHTML = "";
   wireRjListDragSurface(listEl, owner, kind);
 
   orderedTasks.forEach((task) => {
+    const taskOwner = task._owner || owner || "mine";
+    const isPartner = taskOwner === "partner";
     const isTaskEditing = isEditingTask("persistent", task.id);
     const item = document.createElement("li");
     item.className = `task-item ${task.done ? "done" : ""} ${task.priority ? "priority" : ""} ${
       isRecurringTask(task) ? "recurring-task" : ""
-    }`;
+    } ${isPartner ? "partner-task-item" : ""}`;
     item.dataset.taskId = task.id;
+    item.dataset.owner = taskOwner;
     item.dataset.recurring = String(isRecurringTask(task));
     item.dataset.taskGroup = getRjTaskGroup(task);
-    item.draggable = !task.done && !isTaskEditing;
+    item.draggable = !task.done && !isTaskEditing && !isPartner;
 
     if (isTaskEditing) {
       item.classList.add("editing");
@@ -138,102 +276,141 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
       item.classList.add("append-enter");
     }
 
-    item.addEventListener("dragstart", (event) => {
-      if (task.done || isTaskEditing || event.target.closest("button")) {
-        event.preventDefault();
-        return;
-      }
+    if (!isPartner) {
+      item.addEventListener("dragstart", (event) => {
+        if (task.done || isTaskEditing || event.target.closest("button")) {
+          event.preventDefault();
+          return;
+        }
 
-      rjDragState = {
-        owner,
-        kind,
-        taskId: task.id,
-        taskGroup: getRjTaskGroup(task),
-        insertIndex: null,
-        listEl,
-      };
-      item.classList.add("dragging");
-      listEl.classList.add("drag-active");
+        rjDragState = {
+          owner: taskOwner,
+          kind,
+          taskId: task.id,
+          taskGroup: getRjTaskGroup(task),
+          insertIndex: null,
+          listEl,
+        };
+        item.classList.add("dragging");
+        listEl.classList.add("drag-active");
 
-      if (event.dataTransfer) {
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("text/plain", task.id);
-      }
-    });
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", task.id);
+        }
+      });
 
-    item.addEventListener("dragend", () => {
-      item.classList.remove("dragging");
-      cleanupRjDragState();
-    });
-
-    const priorityButton = document.createElement("button");
-    priorityButton.type = "button";
-    priorityButton.className = `task-priority-btn ${task.priority ? "active" : ""}`;
-    priorityButton.setAttribute(
-      "aria-label",
-      `${task.priority ? "Remove priority from" : "Mark as priority"}: ${task.text}`
-    );
-    priorityButton.setAttribute("aria-pressed", String(task.priority));
-    const priorityIcon = document.createElement("span");
-    priorityIcon.className = "priority-star-icon";
-    priorityIcon.setAttribute("aria-hidden", "true");
-    priorityIcon.textContent = task.priority ? "\u2605" : "\u2606";
-    priorityButton.appendChild(priorityIcon);
+      item.addEventListener("dragend", () => {
+        item.classList.remove("dragging");
+        cleanupRjDragState();
+      });
+    }
 
     const label = document.createElement("label");
     label.className = "task-main";
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = task.done;
-    checkbox.setAttribute("aria-label", task.text);
+    if (isPartner) {
+      checkbox.disabled = true;
+      checkbox.setAttribute("aria-label", `${task.text} (read only)`);
+    } else {
+      checkbox.setAttribute("aria-label", task.text);
+    }
     const copy = document.createElement("span");
     copy.className = "task-copy";
     copy.textContent = task.text;
     label.append(checkbox, copy);
 
+    // Badges & Chips
+    const acceptedPairing = getAcceptedPairing();
+    const hasPairing = Boolean(acceptedPairing);
+    const partnerName = getPairingDisplayName(acceptedPairing) || "Partner";
+
+    if (taskOwner === "shared") {
+      const sharedBadge = document.createElement("span");
+      sharedBadge.className = "task-owner-badge owner-shared";
+      sharedBadge.textContent = "\uD83D\uDC65 Shared";
+      sharedBadge.title = "Shared with partner";
+      label.appendChild(sharedBadge);
+    } else if (kind === RJ_LIST_KIND_SCHEDULE && hasPairing) {
+      const ownerBadge = document.createElement("span");
+      ownerBadge.className = `task-owner-badge owner-${taskOwner}`;
+      ownerBadge.textContent = taskOwner === "mine" ? "You" : partnerName;
+      label.appendChild(ownerBadge);
+    }
+
+    if (kind === RJ_LIST_KIND_SCHEDULE || isRjScheduleTask(task)) {
+      const dateId = getTaskAppearanceDateId(task);
+      const todayId = dailyPeriodId(new Date());
+      const dateChip = document.createElement("span");
+      const isPast = dateId && dateId < todayId && !task.done;
+      const isToday = dateId === todayId;
+      dateChip.className = `task-date-chip ${isPast ? "is-past" : ""} ${isToday ? "is-today" : ""}`;
+      dateChip.textContent = formatTaskDateChipText(dateId);
+      label.appendChild(dateChip);
+    }
+
+    let repeatBadge = null;
     if (isRecurringTask(task)) {
-      const repeatBadge = document.createElement("span");
+      repeatBadge = document.createElement("span");
       repeatBadge.className = "task-badge";
       repeatBadge.textContent = "\u21bb";
       repeatBadge.setAttribute("aria-label", "Recurring");
       repeatBadge.title = `${formatRecurringIntervalLabel(task.intervalDays)}; ${formatRecurringShowDays(task)}`;
-      label.appendChild(repeatBadge);
     }
 
-    const actions = document.createElement("div");
-    actions.className = "task-actions";
-    const actionsToggleButton = document.createElement("button");
-    actionsToggleButton.type = "button";
-    actionsToggleButton.className = "task-action-btn task-actions-toggle";
-    actionsToggleButton.setAttribute("aria-label", `Show actions for: ${task.text}`);
-    actionsToggleButton.setAttribute("aria-expanded", "false");
-    actionsToggleButton.textContent = "\u22ef";
-    const editButton = document.createElement("button");
-    editButton.type = "button";
-    editButton.className = "task-action-btn edit-btn";
-    editButton.setAttribute("aria-label", `Edit item: ${task.text}`);
-    editButton.title = "Edit item";
-    const editIcon = document.createElement("span");
-    editIcon.className = "edit-icon";
-    editIcon.setAttribute("aria-hidden", "true");
-    editButton.appendChild(editIcon);
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.className = "task-action-btn delete-btn";
-    deleteButton.setAttribute("aria-label", `Remove item: ${task.text}`);
-    deleteButton.title = "Remove item";
-    const trashIcon = document.createElement("span");
-    trashIcon.className = "trash-icon";
-    trashIcon.setAttribute("aria-hidden", "true");
-    deleteButton.appendChild(trashIcon);
-    actions.append(actionsToggleButton, editButton, deleteButton);
+    let actions = null;
+    let favoriteButton = null;
+    let editButton = null;
+    let deleteButton = null;
+    let partnerFavIndicator = null;
+
+    if (!isPartner) {
+      actions = document.createElement("div");
+      actions.className = "task-actions";
+
+      favoriteButton = document.createElement("button");
+      favoriteButton.type = "button";
+      favoriteButton.className = `task-action-btn favorite-btn ${task.priority ? "active is-favorite" : ""}`;
+      favoriteButton.setAttribute(
+        "aria-label",
+        `${task.priority ? "Remove favorite from" : "Mark as favorite"}: ${task.text}`
+      );
+      favoriteButton.setAttribute("aria-pressed", String(task.priority));
+      favoriteButton.title = task.priority ? "Favorited (click to remove)" : "Favorite task";
+      favoriteButton.innerHTML = task.priority
+        ? `<svg class="action-icon star-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
+        : `<svg class="action-icon star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+
+      editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.className = "task-action-btn edit-btn";
+      editButton.setAttribute("aria-label", `Edit item: ${task.text}`);
+      editButton.title = "Edit item";
+      editButton.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
+
+      deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "task-action-btn delete-btn";
+      deleteButton.setAttribute("aria-label", `Remove item: ${task.text}`);
+      deleteButton.title = "Remove item";
+      deleteButton.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
+
+      actions.append(favoriteButton, editButton, deleteButton);
+    } else if (task.priority) {
+      partnerFavIndicator = document.createElement("span");
+      partnerFavIndicator.className = "task-favorite-indicator";
+      partnerFavIndicator.setAttribute("aria-label", "Favorited task");
+      partnerFavIndicator.title = "Favorited task";
+      partnerFavIndicator.innerHTML = `<svg class="action-icon star-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+    }
 
     if (isTaskEditing) {
       checkbox.disabled = true;
-      priorityButton.disabled = true;
-      actionsToggleButton.disabled = true;
-      editButton.disabled = true;
-      deleteButton.disabled = true;
+      if (actions) {
+        actions.querySelectorAll("button").forEach((btn) => (btn.disabled = true));
+      }
     }
 
     let taskActionStarted = false;
@@ -241,7 +418,7 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
     let priorityToggleStarted = false;
 
     const persistChange = () => {
-      if (owner === "shared") {
+      if (taskOwner === "shared") {
         saveSharedRjState();
       } else {
         saveState();
@@ -250,7 +427,7 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
     };
 
     const togglePriority = () => {
-      if (priorityButton.disabled || priorityToggleStarted) {
+      if ((favoriteButton && favoriteButton.disabled) || priorityToggleStarted || isPartner) {
         return;
       }
 
@@ -260,7 +437,7 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
     };
 
     const setTaskDone = (nextDone) => {
-      if (checkbox.disabled || taskActionStarted || task.done === nextDone) {
+      if (checkbox.disabled || taskActionStarted || task.done === nextDone || isPartner) {
         checkbox.checked = task.done;
         return;
       }
@@ -270,7 +447,7 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
         playTaskCompleteSound(task.priority);
       }
 
-      if (owner === "mine") {
+      if (taskOwner === "mine") {
         moveTaskAfterDoneChange("persistent", task.id, nextDone);
       } else {
         setTaskCompletionState(task, nextDone);
@@ -279,125 +456,123 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
       persistChange();
     };
 
-    wireMobileTaskGesture(item, checkbox, setTaskDone);
+    if (!isPartner) {
+      wireMobileTaskGesture(item, checkbox, setTaskDone);
 
-    item.addEventListener("pointerdown", (event) => {
-      if (
-        event.button !== 0 ||
-        checkbox.disabled ||
-        event.target.closest(".task-action-btn, .task-priority-btn")
-      ) {
-        return;
-      }
+      item.addEventListener("pointerdown", (event) => {
+        if (
+          event.button !== 0 ||
+          checkbox.disabled ||
+          event.target.closest(".task-action-btn, .task-priority-btn")
+        ) {
+          return;
+        }
 
-      taskPointerStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
-    });
+        taskPointerStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+      });
 
-    item.addEventListener("pointerup", (event) => {
-      if (
-        event.button !== 0 ||
-        checkbox.disabled ||
-        !taskPointerStart ||
-        taskPointerStart.pointerId !== event.pointerId ||
-        event.target.closest(".task-action-btn, .task-priority-btn")
-      ) {
+      item.addEventListener("pointerup", (event) => {
+        if (
+          event.button !== 0 ||
+          checkbox.disabled ||
+          !taskPointerStart ||
+          taskPointerStart.pointerId !== event.pointerId ||
+          event.target.closest(".task-action-btn, .task-priority-btn")
+        ) {
+          taskPointerStart = null;
+          return;
+        }
+
+        const movedX = Math.abs(event.clientX - taskPointerStart.x);
+        const movedY = Math.abs(event.clientY - taskPointerStart.y);
         taskPointerStart = null;
-        return;
+
+        if (movedX <= 6 && movedY <= 6) {
+          event.preventDefault();
+          setTaskDone(!checkbox.checked);
+        }
+      });
+
+      item.addEventListener("pointercancel", () => {
+        taskPointerStart = null;
+      });
+
+      checkbox.addEventListener("change", () => {
+        setTaskDone(checkbox.checked);
+      });
+
+      if (favoriteButton) {
+        favoriteButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          togglePriority();
+        });
       }
 
-      const movedX = Math.abs(event.clientX - taskPointerStart.x);
-      const movedY = Math.abs(event.clientY - taskPointerStart.y);
-      taskPointerStart = null;
+      const editTask = () => {
+        if (!editButton || editButton.disabled || taskActionStarted) {
+          return;
+        }
 
-      if (movedX <= 6 && movedY <= 6) {
-        event.preventDefault();
-        setTaskDone(!checkbox.checked);
-      }
-    });
+        taskActionStarted = true;
+        checkbox.disabled = true;
+        if (favoriteButton) favoriteButton.disabled = true;
+        editButton.disabled = true;
+        if (deleteButton) deleteButton.disabled = true;
+        setFormError("persistent", "");
+        setRecurringError("");
 
-    item.addEventListener("pointercancel", () => {
-      taskPointerStart = null;
-    });
+        runTaskEditAnimation(
+          item,
+          "persistent",
+          task,
+          () => {
+            if (isEditingTask("persistent", task.id)) {
+              focusTaskEditInput("persistent");
+            }
+          },
+          { owner: taskOwner, rjKind: kind }
+        );
+      };
 
-    checkbox.addEventListener("change", () => {
-      setTaskDone(checkbox.checked);
-    });
+      editButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        editTask();
+      });
 
-    actionsToggleButton.addEventListener("click", () => {
-      const isOpen = item.classList.toggle("actions-open");
-      actionsToggleButton.setAttribute("aria-expanded", String(isOpen));
-      actionsToggleButton.setAttribute("aria-label", `${isOpen ? "Hide" : "Show"} actions for: ${task.text}`);
-    });
+      deleteButton.addEventListener("click", () => {
+        if (deleteButton.disabled || taskActionStarted) {
+          return;
+        }
 
-    priorityButton.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0 || priorityButton.disabled) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      togglePriority();
-    });
-
-    priorityButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      togglePriority();
-    });
-
-    const editTask = () => {
-      if (editButton.disabled || taskActionStarted) {
-        return;
-      }
-
-      taskActionStarted = true;
-      checkbox.disabled = true;
-      priorityButton.disabled = true;
-      editButton.disabled = true;
-      deleteButton.disabled = true;
-      setFormError("persistent", "");
-      setRecurringError("");
-
-      runTaskEditAnimation(
-        item,
-        "persistent",
-        task,
-        () => {
-          if (isEditingTask("persistent", task.id)) {
-            focusTaskEditInput("persistent");
+        taskActionStarted = true;
+        if (taskOwner === "mine") {
+          if (!removeTaskFromList("persistent", task.id)) {
+            return;
           }
-        },
-        { owner, rjKind: kind }
-      );
-    };
-
-    editButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      editTask();
-    });
-
-    deleteButton.addEventListener("click", () => {
-      if (deleteButton.disabled || taskActionStarted) {
-        return;
-      }
-
-      taskActionStarted = true;
-      if (owner === "mine") {
-        if (!removeTaskFromList("persistent", task.id)) {
-          return;
+        } else {
+          const taskCollection =
+            (sharedRjState.tasks[kind] || sharedRjState.tasks.todo || tasks);
+          const taskIndex = taskCollection.findIndex((candidate) => candidate.id === task.id);
+          if (taskIndex >= 0) {
+            taskCollection.splice(taskIndex, 1);
+          }
+          recordTaskDeletion(sharedRjState, task.id);
         }
-      } else {
-        const taskIndex = tasks.findIndex((candidate) => candidate.id === task.id);
-        if (taskIndex < 0) {
-          return;
-        }
-        tasks.splice(taskIndex, 1);
-        recordTaskDeletion(sharedRjState, task.id);
-      }
-      pendingAppendAnimations.delete(task.id);
-      persistChange();
-    });
+        pendingAppendAnimations.delete(task.id);
+        persistChange();
+      });
+    }
 
-    item.append(priorityButton, label, actions);
+    item.append(label);
+    if (actions) {
+      item.appendChild(actions);
+    }
+    if (partnerFavIndicator) {
+      item.appendChild(partnerFavIndicator);
+    }
+    if (repeatBadge) {
+      item.appendChild(repeatBadge);
+    }
     listEl.appendChild(item);
   });
 
@@ -597,59 +772,115 @@ function renderPartnerRjList() {
     return;
   }
 
-  const partnerName = getPairingDisplayName(acceptedPairing);
-  els.partnerRjTitle.textContent = "To-do";
+  const partnerName = getPairingDisplayName(acceptedPairing) || "Partner";
+  els.partnerRjTitle.textContent = `${partnerName}'s Tasks`;
   els.partnerRjScheduleTitle.textContent = "Schedule";
   els.partnerRjColumnTitle.textContent = partnerName;
-  els.partnerRjList.setAttribute("aria-label", `${partnerName}'s IRL list`);
+  els.partnerRjList.setAttribute("aria-label", `${partnerName}'s task list`);
   els.partnerRjScheduleList.setAttribute("aria-label", `${partnerName}'s schedule`);
 
   if (partnerState) resetRjDay(partnerState.listSets.rj, dailyPeriodId(new Date()));
-  const partnerTasks = partnerState?.listSets?.rj?.tasks?.persistent || [];
-  const tasks = partnerTasks.filter(isRjTodoTask);
-  const visibleTasks = getVisibleTasksForList("persistent", orderTasksForList("persistent", tasks));
+  const partnerTasks = (partnerState?.listSets?.rj?.tasks?.persistent || [])
+    .filter(isRjTodoTask)
+    .map((t) => {
+      t._owner = "partner";
+      return t;
+    });
+
+  // Include shared to-dos in partner list as well
+  const sharedTasks = (sharedRjState.tasks.todo || []).map((t) => {
+    t._owner = "shared";
+    return t;
+  });
+
+  const combined = [...partnerTasks, ...sharedTasks];
+  const orderedTasks = orderTasksForList("persistent", combined);
+  const visibleTasks = getVisibleTasksForList("persistent", orderedTasks);
 
   visibleTasks.forEach((task) => {
+    const taskOwner = task._owner || "partner";
+    const isShared = taskOwner === "shared";
     const item = document.createElement("li");
     item.className = `task-item partner-task-item ${task.done ? "done" : ""} ${task.priority ? "priority" : ""} ${
       isRecurringTask(task) ? "recurring-task" : ""
     }`;
+    item.dataset.taskId = task.id;
+    item.dataset.owner = taskOwner;
 
-    const priority = document.createElement("span");
-    priority.className = `task-priority-btn ${task.priority ? "active" : ""}`;
-    priority.setAttribute("aria-hidden", "true");
-    const priorityIcon = document.createElement("span");
-    priorityIcon.className = "priority-star-icon";
-    priorityIcon.textContent = task.priority ? "\u2605" : "\u2606";
-    priority.appendChild(priorityIcon);
+    let partnerFavIndicator = null;
+    if (task.priority) {
+      partnerFavIndicator = document.createElement("span");
+      partnerFavIndicator.className = "task-favorite-indicator";
+      partnerFavIndicator.setAttribute("aria-label", "Favorited task");
+      partnerFavIndicator.title = "Favorited task";
+      partnerFavIndicator.innerHTML = `<svg class="action-icon star-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+    }
 
     const label = document.createElement("label");
     label.className = "task-main";
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = task.done;
-    checkbox.disabled = true;
-    checkbox.setAttribute("aria-label", `${task.text} (read only)`);
+
+    let partnerActionStarted = false;
+    const toggleSharedTask = () => {
+      if (partnerActionStarted) return;
+      partnerActionStarted = true;
+      const nextDone = !task.done;
+      setTaskCompletionState(task, nextDone);
+      updateRecurringTaskCompletionFields(task, nextDone);
+      saveSharedRjState();
+      renderAll();
+    };
+
+    if (isShared) {
+      item.style.cursor = "pointer";
+      checkbox.setAttribute("aria-label", task.text);
+      checkbox.addEventListener("change", () => {
+        toggleSharedTask();
+      });
+      item.addEventListener("click", (event) => {
+        if (event.target.closest("label, button, .task-action-btn")) return;
+        toggleSharedTask();
+      });
+    } else {
+      checkbox.disabled = true;
+      checkbox.setAttribute("aria-label", `${task.text} (read only)`);
+    }
+
     const copy = document.createElement("span");
     copy.className = "task-copy";
     copy.textContent = task.text;
     label.append(checkbox, copy);
 
-    if (isRecurringTask(task)) {
+    if (isShared) {
       const badge = document.createElement("span");
-      badge.className = "task-badge";
-      badge.textContent = "\u21bb";
-      badge.setAttribute("aria-label", "Recurring");
-      badge.title = `${formatRecurringIntervalLabel(task.intervalDays)}; ${formatRecurringShowDays(task)}`;
+      badge.className = "task-owner-badge owner-shared";
+      badge.textContent = "\uD83D\uDC65 Shared";
       label.appendChild(badge);
     }
 
-    item.append(priority, label);
+    let repeatBadge = null;
+    if (isRecurringTask(task)) {
+      repeatBadge = document.createElement("span");
+      repeatBadge.className = "task-badge";
+      repeatBadge.textContent = "\u21bb";
+      repeatBadge.setAttribute("aria-label", "Recurring");
+      repeatBadge.title = `${formatRecurringIntervalLabel(task.intervalDays)}; ${formatRecurringShowDays(task)}`;
+    }
+
+    item.append(label);
+    if (partnerFavIndicator) {
+      item.appendChild(partnerFavIndicator);
+    }
+    if (repeatBadge) {
+      item.appendChild(repeatBadge);
+    }
     els.partnerRjList.appendChild(item);
   });
 
   els.partnerRjEmpty.hidden = visibleTasks.length > 0;
-  renderReadOnlyRjScheduleList(partnerTasks.filter(isRjScheduleTask));
+  renderReadOnlyRjScheduleList((partnerState?.listSets?.rj?.tasks?.persistent || []).filter(isRjScheduleTask));
 }
 
 function renderReadOnlyRjScheduleList(tasks) {
@@ -661,13 +892,16 @@ function renderReadOnlyRjScheduleList(tasks) {
     item.className = `task-item partner-task-item ${task.done ? "done" : ""} ${task.priority ? "priority" : ""} ${
       isRecurringTask(task) ? "recurring-task" : ""
     }`;
-    const priority = document.createElement("span");
-    priority.className = `task-priority-btn ${task.priority ? "active" : ""}`;
-    priority.setAttribute("aria-hidden", "true");
-    const priorityIcon = document.createElement("span");
-    priorityIcon.className = "priority-star-icon";
-    priorityIcon.textContent = task.priority ? "\u2605" : "\u2606";
-    priority.appendChild(priorityIcon);
+
+    let partnerFavIndicator = null;
+    if (task.priority) {
+      partnerFavIndicator = document.createElement("span");
+      partnerFavIndicator.className = "task-favorite-indicator";
+      partnerFavIndicator.setAttribute("aria-label", "Favorited task");
+      partnerFavIndicator.title = "Favorited task";
+      partnerFavIndicator.innerHTML = `<svg class="action-icon star-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+    }
+
     const label = document.createElement("label");
     label.className = "task-main";
     const checkbox = document.createElement("input");
@@ -680,16 +914,22 @@ function renderReadOnlyRjScheduleList(tasks) {
     copy.textContent = task.text;
     label.append(checkbox, copy);
 
+    let repeatBadge = null;
     if (isRecurringTask(task)) {
-      const badge = document.createElement("span");
-      badge.className = "task-badge";
-      badge.textContent = "\u21bb";
-      badge.setAttribute("aria-label", "Recurring");
-      badge.title = `${formatRecurringIntervalLabel(task.intervalDays)}; ${formatRecurringShowDays(task)}`;
-      label.appendChild(badge);
+      repeatBadge = document.createElement("span");
+      repeatBadge.className = "task-badge";
+      repeatBadge.textContent = "\u21bb";
+      repeatBadge.setAttribute("aria-label", "Recurring");
+      repeatBadge.title = `${formatRecurringIntervalLabel(task.intervalDays)}; ${formatRecurringShowDays(task)}`;
     }
 
-    item.append(priority, label);
+    item.append(label);
+    if (partnerFavIndicator) {
+      item.appendChild(partnerFavIndicator);
+    }
+    if (repeatBadge) {
+      item.appendChild(repeatBadge);
+    }
     els.partnerRjScheduleList.appendChild(item);
   });
 
@@ -788,13 +1028,14 @@ function renderReadOnlyTaskList(listType, tasks, listEl, emptyEl) {
     const item = document.createElement("li");
     item.className = `task-item partner-task-item ${task.done ? "done" : ""} ${task.priority ? "priority" : ""}`;
 
-    const priority = document.createElement("span");
-    priority.className = `task-priority-btn ${task.priority ? "active" : ""}`;
-    priority.setAttribute("aria-hidden", "true");
-    const priorityIcon = document.createElement("span");
-    priorityIcon.className = "priority-star-icon";
-    priorityIcon.textContent = task.priority ? "\u2605" : "\u2606";
-    priority.appendChild(priorityIcon);
+    let partnerFavIndicator = null;
+    if (task.priority) {
+      partnerFavIndicator = document.createElement("span");
+      partnerFavIndicator.className = "task-favorite-indicator";
+      partnerFavIndicator.setAttribute("aria-label", "Favorited task");
+      partnerFavIndicator.title = "Favorited task";
+      partnerFavIndicator.innerHTML = `<svg class="action-icon star-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+    }
 
     const label = document.createElement("label");
     label.className = "task-main";
@@ -808,7 +1049,10 @@ function renderReadOnlyTaskList(listType, tasks, listEl, emptyEl) {
     copy.textContent = task.text;
     label.append(checkbox, copy);
 
-    item.append(priority, label);
+    item.append(label);
+    if (partnerFavIndicator) {
+      item.appendChild(partnerFavIndicator);
+    }
     listEl.appendChild(item);
   });
 
@@ -829,7 +1073,21 @@ function renderList(listType) {
   setFormError(listType, "");
 
   if (isRjPersistentList) {
-    renderInteractiveRjList(surfaceTaskSet, listEl, emptyEl, "mine", RJ_LIST_KIND_TODO);
+    const acceptedPairing = getAcceptedPairing();
+    const hasPairing = Boolean(acceptedPairing);
+
+    const myTasks = surfaceTaskSet.map((t) => {
+      t._owner = "mine";
+      return t;
+    });
+
+    const sharedTasks = (hasPairing ? (sharedRjState.tasks.todo || []) : []).map((t) => {
+      t._owner = "shared";
+      return t;
+    });
+
+    const combined = [...myTasks, ...sharedTasks];
+    renderInteractiveRjList(combined, listEl, emptyEl, "mine", RJ_LIST_KIND_TODO);
     return;
   }
 
@@ -890,19 +1148,6 @@ function renderList(listType) {
       li.classList.remove("dragging");
     });
 
-    const priorityBtn = document.createElement("button");
-    priorityBtn.type = "button";
-    priorityBtn.className = `task-priority-btn ${task.priority ? "active" : ""}`;
-    priorityBtn.setAttribute("aria-label", `${task.priority ? "Remove priority from" : "Mark as priority"}: ${task.text}`);
-    priorityBtn.setAttribute("aria-pressed", String(task.priority));
-    priorityBtn.title = task.priority ? "Priority task" : "Mark priority";
-
-    const priorityIcon = document.createElement("span");
-    priorityIcon.className = "priority-star-icon";
-    priorityIcon.setAttribute("aria-hidden", "true");
-    priorityIcon.textContent = task.priority ? "\u2605" : "\u2606";
-    priorityBtn.appendChild(priorityIcon);
-
     const label = document.createElement("label");
     label.className = "task-main";
 
@@ -924,67 +1169,55 @@ function renderList(listType) {
       repeatBadge.textContent = "\u21bb";
       repeatBadge.setAttribute("aria-label", "Recurring");
       repeatBadge.title = `${formatRecurringIntervalLabel(task.intervalDays)}; ${formatRecurringShowDays(task)}`;
-      label.appendChild(repeatBadge);
     }
 
     const actions = document.createElement("div");
     actions.className = "task-actions";
 
-    const actionsToggleBtn = document.createElement("button");
-    actionsToggleBtn.type = "button";
-    actionsToggleBtn.className = "task-action-btn task-actions-toggle";
-    actionsToggleBtn.setAttribute("aria-label", `Show actions for: ${task.text}`);
-    actionsToggleBtn.setAttribute("aria-expanded", "false");
-    actionsToggleBtn.textContent = "\u22ef";
+    const favoriteBtn = document.createElement("button");
+    favoriteBtn.type = "button";
+    favoriteBtn.className = `task-action-btn favorite-btn ${task.priority ? "active is-favorite" : ""}`;
+    favoriteBtn.setAttribute(
+      "aria-label",
+      `${task.priority ? "Remove favorite from" : "Mark as favorite"}: ${task.text}`
+    );
+    favoriteBtn.setAttribute("aria-pressed", String(task.priority));
+    favoriteBtn.title = task.priority ? "Favorited (click to remove)" : "Favorite task";
+    favoriteBtn.innerHTML = task.priority
+      ? `<svg class="action-icon star-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
+      : `<svg class="action-icon star-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
 
     const editBtn = document.createElement("button");
     editBtn.type = "button";
     editBtn.className = "task-action-btn edit-btn";
     editBtn.setAttribute("aria-label", `Edit task: ${task.text}`);
     editBtn.title = "Edit task";
-
-    const editIcon = document.createElement("span");
-    editIcon.className = "edit-icon";
-    editIcon.setAttribute("aria-hidden", "true");
-    editBtn.appendChild(editIcon);
+    editBtn.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
 
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "task-action-btn delete-btn";
     deleteBtn.setAttribute("aria-label", `Remove task: ${task.text}`);
     deleteBtn.title = "Remove task";
-
-    const trashIcon = document.createElement("span");
-    trashIcon.className = "trash-icon";
-    trashIcon.setAttribute("aria-hidden", "true");
-    deleteBtn.appendChild(trashIcon);
+    deleteBtn.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
     if (!isReadOnly) {
-      actions.append(actionsToggleBtn, editBtn, deleteBtn);
+      actions.append(favoriteBtn, editBtn, deleteBtn);
     }
 
     if (isReadOnly || isTaskEditing) {
       checkbox.disabled = true;
-      priorityBtn.disabled = true;
+      favoriteBtn.disabled = true;
       editBtn.disabled = true;
       deleteBtn.disabled = true;
-      actionsToggleBtn.disabled = true;
     }
 
     let taskActionStarted = false;
     let taskPointerStart = null;
     let priorityToggleStarted = false;
 
-    actionsToggleBtn.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const isOpen = li.classList.toggle("actions-open");
-      actionsToggleBtn.setAttribute("aria-expanded", String(isOpen));
-      actionsToggleBtn.setAttribute("aria-label", `${isOpen ? "Hide" : "Show"} actions for: ${task.text}`);
-    });
-
     const togglePriority = () => {
-      if (isReadOnlyView() || priorityBtn.disabled || priorityToggleStarted) {
+      if (isReadOnlyView() || favoriteBtn.disabled || priorityToggleStarted) {
         return;
       }
 
@@ -1074,17 +1307,7 @@ function renderList(listType) {
       setTaskDone(checkbox.checked);
     });
 
-    priorityBtn.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0 || priorityBtn.disabled) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      togglePriority();
-    });
-
-    priorityBtn.addEventListener("click", (event) => {
+    favoriteBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       togglePriority();
     });
@@ -1100,6 +1323,7 @@ function renderList(listType) {
 
       taskActionStarted = true;
       checkbox.disabled = true;
+      favoriteBtn.disabled = true;
       deleteBtn.disabled = true;
       editBtn.disabled = true;
       li.draggable = false;
@@ -1133,6 +1357,7 @@ function renderList(listType) {
 
       taskActionStarted = true;
       checkbox.disabled = true;
+      favoriteBtn.disabled = true;
       deleteBtn.disabled = true;
       editBtn.disabled = true;
       li.draggable = false;
@@ -1169,7 +1394,13 @@ function renderList(listType) {
       deleteTask();
     });
 
-    li.append(priorityBtn, label, actions);
+    li.append(label);
+    if (actions) {
+      li.appendChild(actions);
+    }
+    if (repeatBadge) {
+      li.appendChild(repeatBadge);
+    }
     listEl.appendChild(li);
   });
 

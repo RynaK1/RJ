@@ -1,0 +1,17 @@
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Chrome temporary test profiles & isolated test artifacts
+.chrome-profile*
+rj-retention-*
+/profile/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Scratch directory
+scratch/

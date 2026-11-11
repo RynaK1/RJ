@@ -4,18 +4,52 @@ A plain HTML, CSS, and JavaScript planner with Supabase authentication and synci
 
 ## Code map
 
-| File | Responsibility |
-| --- | --- |
-| index.html | Page structure and script loading |
-| styles.css | Shared styles, theme, and responsive layout |
-| app.js | Bootstrap, shared state, DOM references, event wiring, task creation/completion, recurrence controls, and animations |
-| task-edit.js | Edit form lifecycle, outside-click handling, and saving/moving tasks |
-| task-lists.js | Personal/shared/partner list rendering and IRL drag surfaces |
-| planner-time.js | Date normalization, recurrence calculations, and reset labels |
-| sync.js | Authentication, pairing, local storage, and Supabase syncing |
-| supabase-setup.sql | Database schema and access policies |
+| File | Responsibility | Fast Navigation Tags |
+| --- | --- | --- |
+| index.html | Semantic structure, templates, and script loading | — |
+| styles.css | Shared styles, themes, and responsive layouts | `[SEC-01]` through `[SEC-12]` |
+| app.js | Bootstrap, shared state, DOM cache, task actions, and reset scheduler | `[APP-01]` through `[APP-14]` |
+| task-edit.js | Edit form lifecycle, outside-click handling, and saving/moving tasks | Function-level |
+| task-lists.js | Personal/shared/partner list rendering and IRL drag surfaces | Function-level |
+| planner-time.js | Date normalization, recurrence calculations, and reset labels | Function-level |
+| sync.js | Authentication, pairing, local storage, and Supabase syncing | Function-level |
+| assets/ | Static PNG icons and symbols (`owner-mine.png`, `owner-shared.png`) | — |
+| supabase-setup.sql | Database schema and access policies | — |
+| tests/ | Isolated browser test harness and regression test suites | `retention`, `sync`, `resets` |
 
-Start with the relevant file and search for the function name rather than reading the entire application.
+### Fast Navigation Index
+
+Use quick keyword search (`[APP-XX]` or `[SEC-XX]`) to jump straight to any section:
+
+- **styles.css**:
+  - `[SEC-01]` Design Tokens & Themes (Light/Dark Mode, Pastel Accents)
+  - `[SEC-02]` Base Resets, Typography & Form Inputs
+  - `[SEC-03]` Application Header, Auth & Session Controls
+  - `[SEC-04]` Task Cards, List Items & Drag Surfaces
+  - `[SEC-05]` Component Palettes, Dialogs & Settings Modal
+  - `[SEC-06]` IRL Mode Dual-Column Layout & Composer
+  - `[SEC-07]` Recurring Panel, Schedule Panel & Day Pickers
+  - `[SEC-08]` Dropdowns, Custom Selects & Animations
+  - `[SEC-09]` Refined Layout Overrides, Popups & Scrolling
+  - `[SEC-10]` Compact Controls, IRL Target Grid & Owner Toggle
+  - `[SEC-11]` Shared Surfaces & Recurring Overviews
+  - `[SEC-12]` Responsive Breakpoints (Mobile & Tablet)
+
+- **app.js**:
+  - `[APP-01]` Configuration, Storage Keys & Constants
+  - `[APP-02]` State Factories & Default State
+  - `[APP-03]` DOM Element Cache (`els`)
+  - `[APP-04]` Theme Management (Light / Dark Mode)
+  - `[APP-05]` Bootstrap Initialization (`initialize()`)
+  - `[APP-06]` Midnight Resets & Reset Scheduler
+  - `[APP-07]` Event Wiring & Listeners
+  - `[APP-08]` Custom Dropdown Select Controls
+  - `[APP-09]` List Sets & Tab Navigation (IRL vs MS)
+  - `[APP-10]` Recurring Options & Day Pickers
+  - `[APP-11]` Task Completion & Completion Orders
+  - `[APP-12]` Settings UI & Pairing Hydration
+  - `[APP-13]` Timed Expirations & Midnight Reset Timers
+  - `[APP-14]` Local Storage Data Normalization & Hydration
 
 ## Loading and data contracts
 
@@ -33,7 +67,7 @@ For CSS changes, compare computed styles against the previous stylesheet across 
 
 ## Task retention regression checks
 
-IRL daily cleanup runs at midnight in the selected time zone, including the optional daylight saving adjustment. MS daily cleanup always runs at midnight UTC. Unfinished tasks carry forward until manually deleted or completed; completed one-time tasks clear at the next daily reset, while recurring definitions remain. A timer targets the next of the two midnight boundaries, and checks when the page resumes catch resets after sleep or reopening. Completion dates are checked even when the saved reset marker is already current, so late cloud responses cannot bypass cleanup.
+IRL daily cleanup runs at midnight in the selected time zone, including the optional daylight saving adjustment: unfinished tasks carry forward, completed one-time tasks clear at the daily reset, and recurring definitions remain. MS daily tasks reset at midnight UTC every day, and MS weekly tasks reset on Thursday at midnight UTC every week; completed MS daily and weekly tasks stay crossed out until their respective reset, when their completion status resets to uncompleted without deleting the tasks. A timer targets the next midnight boundary, and checks when the page resumes catch resets after sleep or reopening. Completion dates are checked even when the saved reset marker is already current, so late cloud responses cannot bypass cleanup.
 
 Sync reconciles local and cloud task collections rather than discarding one snapshot. Manual deletions and expired one-time completions are stored in `deletedTaskIds`, so merging older snapshots cannot restore cleared tasks. Failed saves keep their local copy and retry during the periodic update. Older clients do not record deletions; reload updated clients before deleting tasks on another device.
 

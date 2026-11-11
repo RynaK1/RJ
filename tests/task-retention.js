@@ -32,8 +32,11 @@
   for (let day = 0; day < 40; day++) {
     clock = new NativeDate(NativeDate.UTC(2026, 8, 17 + day, 12)).toISOString();
     runTimedUpdatesIfNeeded();
-    for (const set of Object.values(state.listSets)) for (const tasks of Object.values(set.tasks)) {
+    for (const tasks of Object.values(state.listSets.rj.tasks)) {
       if (tasks.map(t => t.id).join(',') !== 'open,past,future,weekly,legacy') throw Error('Personal retention failed on day ' + day);
+    }
+    for (const tasks of Object.values(state.listSets.schedms.tasks)) {
+      if (tasks.map(t => t.id).join(',') !== 'open,past,future,weekly,legacy,done') throw Error('MS retention failed on day ' + day);
     }
     for (const tasks of Object.values(sharedRjState.tasks)) if (tasks.length !== 5) throw Error('Shared retention failed');
     for (const id of ['weekly', 'legacy']) if (!isTaskVisibleInList('persistent', state.listSets.rj.tasks.persistent.find(t => t.id === id))) throw Error('Unfinished recurring item hidden: ' + id);
@@ -97,10 +100,11 @@
   for (const set of Object.values(state.listSets)) for (const tasks of Object.values(set.tasks)) check(tasks.some(t => t.id === 'finish-next'), 'Same-day completion retained');
   clock = new NativeDate(new NativeDate(clock).getTime() + 86400000).toISOString();
   runTimedUpdatesIfNeeded();
-  for (const set of Object.values(state.listSets)) for (const tasks of Object.values(set.tasks)) check(!tasks.some(t => t.id === 'finish-next'), 'Next-day completion removed');
+  for (const tasks of Object.values(state.listSets.rj.tasks)) check(!tasks.some(t => t.id === 'finish-next'), 'Next-day completion removed in IRL');
   for (const tasks of Object.values(sharedRjState.tasks)) check(!tasks.some(t => t.id === 'finish-next'), 'Shared completion cleared next day');
+  check(state.listSets.schedms.tasks.daily.find(t => t.id === 'finish-next').done === false, 'Next-day MS daily completion resets to uncompleted');
 
-  // MS clears at UTC midnight; IRL waits for midnight in the selected zone.
+  // MS daily resets at UTC midnight; IRL waits for midnight in the selected zone.
   state = structuredClone(defaultState);
   state.settings.timezoneOffset = '-08:00';
   state.activeListSet = 'rj';
@@ -120,9 +124,9 @@
   for (const tasks of Object.values(state.listSets.rj.tasks)) {
     check(tasks.some(t => t.id === 'finished'), 'UTC midnight retains IRL tasks until PST midnight');
   }
-  for (const tasks of Object.values(state.listSets.schedms.tasks)) {
-    check(!tasks.some(t => t.id === 'finished'), 'MS completed tasks clear at UTC midnight');
-  }
+  check(state.listSets.schedms.tasks.daily.find(t => t.id === 'finished').done === false, 'MS daily completed task resets at UTC midnight');
+  check(state.listSets.schedms.tasks.weekly.find(t => t.id === 'finished').done === false, 'MS weekly completed task resets on Thursday UTC midnight');
+  check(state.listSets.schedms.tasks.persistent.find(t => t.id === 'finished').done === true, 'MS persistent completed task stays completed');
   check(nextPlannerDailyResetDate().toISOString() === '2026-10-01T08:00:00.000Z', 'PST reset is scheduled at 12 AM PST');
   renderResetLabels();
   check(els.dailyResetLabel.textContent.includes('12:00'), 'Reset label shows local midnight');
@@ -135,7 +139,7 @@
   }
   clock = '2026-10-01T08:00:00Z';
   runTimedUpdatesIfNeeded();
-  for (const set of Object.values(state.listSets)) for (const tasks of Object.values(set.tasks)) {
+  for (const tasks of Object.values(state.listSets.rj.tasks)) {
     check(tasks.map(t => t.id).join(',') === 'carry,repeat-finished', 'PST midnight clears only finished one-time tasks');
     check(tasks.find(t => t.id === 'repeat-finished').done === false, 'Recurring definition survives midnight');
   }

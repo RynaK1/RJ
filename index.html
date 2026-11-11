@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -73,6 +73,25 @@
       </header>
 
       <section id="lists-view" hidden>
+        <nav id="schedms-horizon-nav" class="schedms-horizon-nav" aria-label="MS cadence view" hidden>
+          <div class="schedms-horizon-tabs" role="tablist">
+            <button id="schedms-tab-daily" class="schedms-horizon-tab active" type="button" role="tab" aria-selected="true" data-ms-cadence="daily">
+              <span class="schedms-tab-icon" aria-hidden="true">&#9728;</span>
+              <span>Daily</span>
+            </button>
+            <button id="schedms-tab-weekly" class="schedms-horizon-tab" type="button" role="tab" aria-selected="false" data-ms-cadence="weekly">
+              <span class="schedms-tab-icon" aria-hidden="true">&#128197;</span>
+              <span>Weekly</span>
+            </button>
+            <button id="schedms-tab-persistent" class="schedms-horizon-tab" type="button" role="tab" aria-selected="false" data-ms-cadence="persistent">
+              <span class="schedms-tab-icon" aria-hidden="true">&#128204;</span>
+              <span>To-Do</span>
+            </button>
+            <button id="schedms-tab-all" class="schedms-horizon-tab" type="button" role="tab" aria-selected="false" data-ms-cadence="all">
+              <span>All</span>
+            </button>
+          </div>
+        </nav>
         <section id="schedms-quick-add" class="schedms-quick-add" aria-label="Add MS task">
           <form id="schedms-add-form" class="schedms-add-form" autocomplete="off">
             <label class="sr-only" for="schedms-input">Add MS task</label>
@@ -101,6 +120,10 @@
                 <span class="rj-target-label" aria-hidden="true">Schedule</span>
               </button>
             </div>
+            <div id="rj-schedule-date-wrap" class="rj-schedule-date-wrap" hidden>
+              <label class="sr-only" for="rj-schedule-date">Scheduled date</label>
+              <input type="date" id="rj-schedule-date" class="rj-schedule-date-input" aria-label="Scheduled date" title="Scheduled date" />
+            </div>
             <button
               id="rj-owner-toggle"
               class="rj-owner-toggle"
@@ -110,8 +133,8 @@
               aria-label="Add items to my lists"
               title="Adding to my lists"
             >
-              <span class="rj-owner-choice rj-owner-choice-mine" aria-hidden="true">&#8226;</span>
-              <span class="rj-owner-choice rj-owner-choice-shared" aria-hidden="true">&#8226;&#8226;</span>
+              <span class="rj-owner-choice rj-owner-choice-mine" aria-hidden="true"></span>
+              <span class="rj-owner-choice rj-owner-choice-shared" aria-hidden="true"></span>
               <span class="rj-owner-thumb" aria-hidden="true"></span>
             </button>
             <button id="recurring-toggle-btn" class="recurring-toggle-btn" type="button" aria-expanded="false" aria-controls="recurring-form" aria-label="Task options" title="Task options">
@@ -208,34 +231,38 @@
             <p id="weekly-empty" class="empty-msg">No tasks</p>
           </section>
 
-          <section class="todo-card persistent-card irl-card irl-left-card mine-todo-card" data-list="persistent">
+          <section class="todo-card persistent-card irl-card mine-todo-card" data-list="persistent" id="mine-todo-card">
             <div class="card-header">
-              <h2 id="persistent-list-title">To-Do</h2>
+              <h2 id="persistent-list-title">My Tasks</h2>
             </div>
-            <ul id="persistent-list" class="task-list"></ul>
+            <ul id="persistent-list" class="task-list" aria-label="My task list"></ul>
             <p id="persistent-empty" class="empty-msg">No tasks</p>
           </section>
-          <section id="shared-rj-todo-card" class="todo-card persistent-card irl-card irl-left-card shared-todo-card rj-only" aria-labelledby="shared-rj-todo-title" hidden>
+
+          <section id="mine-rj-schedule-card" class="todo-card persistent-card irl-card mine-schedule-card rj-only" aria-labelledby="mine-rj-schedule-title" hidden>
+            <div class="card-header">
+              <h2 id="mine-rj-schedule-title">Schedule</h2>
+            </div>
+            <ul id="mine-rj-schedule-list" class="task-list" aria-label="Schedule"></ul>
+            <p id="mine-rj-schedule-empty" class="empty-msg">No events</p>
+          </section>
+
+          <section id="partner-rj-card" class="todo-card persistent-card partner-rj-card irl-card partner-todo-card rj-only" aria-labelledby="partner-rj-title" hidden>
+            <div class="card-header">
+              <h2 id="partner-rj-title">Partner Tasks</h2>
+            </div>
+            <ul id="partner-rj-list" class="task-list" aria-label="Partner's task list"></ul>
+            <p id="partner-rj-empty" class="empty-msg">No tasks</p>
+          </section>
+
+          <section id="shared-rj-todo-card" class="todo-card persistent-card irl-card shared-todo-card rj-only" aria-labelledby="shared-rj-todo-title" hidden>
             <div class="card-header">
               <h2 id="shared-rj-todo-title">To-do</h2>
             </div>
             <ul id="shared-rj-todo-list" class="task-list" aria-label="Shared to-do list"></ul>
             <p id="shared-rj-todo-empty" class="empty-msg">No shared tasks</p>
           </section>
-          <section id="partner-rj-card" class="todo-card persistent-card partner-rj-card irl-card irl-left-card partner-todo-card" aria-labelledby="partner-rj-title" hidden>
-            <div class="card-header">
-              <h2 id="partner-rj-title">To-do</h2>
-            </div>
-            <ul id="partner-rj-list" class="task-list" aria-label="Partner's IRL list"></ul>
-            <p id="partner-rj-empty" class="empty-msg">No tasks</p>
-          </section>
-          <section id="mine-rj-schedule-card" class="todo-card persistent-card irl-card mine-schedule-card rj-only" aria-labelledby="mine-rj-schedule-title" hidden>
-            <div class="card-header">
-              <h2 id="mine-rj-schedule-title">Schedule</h2>
-            </div>
-            <ul id="mine-rj-schedule-list" class="task-list" aria-label="My schedule"></ul>
-            <p id="mine-rj-schedule-empty" class="empty-msg">No events</p>
-          </section>
+
           <section id="shared-rj-schedule-card" class="todo-card persistent-card irl-card shared-schedule-card rj-only" aria-labelledby="shared-rj-schedule-title" hidden>
             <div class="card-header">
               <h2 id="shared-rj-schedule-title">Schedule</h2>
@@ -243,6 +270,7 @@
             <ul id="shared-rj-schedule-list" class="task-list" aria-label="Shared schedule"></ul>
             <p id="shared-rj-schedule-empty" class="empty-msg">No shared events</p>
           </section>
+
           <section id="partner-rj-schedule-card" class="todo-card persistent-card partner-rj-card irl-card partner-schedule-card rj-only" aria-labelledby="partner-rj-schedule-title" hidden>
             <div class="card-header">
               <h2 id="partner-rj-schedule-title">Schedule</h2>
@@ -322,6 +350,20 @@
                 </div>
               </div>
               <p id="pairing-message" class="pairing-message" role="status"></p>
+            </div>
+          </div>
+          <div class="option-row">
+            <label for="theme-select">Theme</label>
+            <select id="theme-select" aria-label="Theme">
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+          <div class="option-row color-preference-option">
+            <label for="user-color-picker">Accent color</label>
+            <div class="color-picker-row">
+              <input type="color" id="user-color-picker" class="user-color-picker" aria-label="Choose accent color" title="Choose accent color" />
+              <span id="user-color-value" class="user-color-value">#3D7A5A</span>
             </div>
           </div>
           <div class="option-row">

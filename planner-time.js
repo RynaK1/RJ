@@ -302,13 +302,25 @@ function currentResetDisplayDate(date = new Date()) {
 
 function renderResetLabels() {
   const isMs = state.activeListSet === "schedms";
-  const dailyReset = isMs ? nextUtcDailyResetDate() : currentResetDisplayDate(nextPlannerDailyResetDate());
+  const dailyReset = currentResetDisplayDate(
+    isMs ? nextUtcDailyResetDate() : nextPlannerDailyResetDate()
+  );
+  const weeklyReset = currentResetDisplayDate(
+    isMs ? nextUtcWeeklyResetDate() : nextPlannerDailyResetDate()
+  );
 
-  els.dailyResetLabel.textContent = `Clears completed: ${formatPlannerDate(dailyReset, {
+  const prefix = isMs ? "Resets: " : "Clears completed: ";
+  els.dailyResetLabel.textContent = `${prefix}${formatPlannerDate(dailyReset, {
     hour: "numeric",
     minute: "2-digit",
-  })}${isMs ? " UTC" : ""}`;
-  els.weeklyResetLabel.textContent = els.dailyResetLabel.textContent;
+  })}`;
+  els.weeklyResetLabel.textContent = isMs
+    ? `${prefix}${formatPlannerDate(weeklyReset, {
+        weekday: "short",
+        hour: "numeric",
+        minute: "2-digit",
+      })}`
+    : els.dailyResetLabel.textContent;
   scheduleDailyReset();
 }
 

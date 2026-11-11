@@ -203,12 +203,17 @@ async function refreshPairingContext({ silent = false } = {}) {
     if (context.accepted) {
       await Promise.all([loadPartnerPlannerState({ silent: true }), loadSharedRjPlannerState({ silent: true })]);
     } else {
+      const hadPartner = Boolean(partnerState);
       partnerState = null;
       sharedRjState = createDefaultSharedRjState();
       sharedRjPairingId = "";
       sharedRjSyncPending = false;
       sharedRjRemoteAvailable = true;
       sharedRjRemoteNotice = "";
+      if (hadPartner) {
+        applyThemeColors();
+        renderAll();
+      }
     }
 
     renderPairingControls();
@@ -262,8 +267,11 @@ async function loadPartnerPlannerState({ silent = false } = {}) {
     partnerState = data?.data ? normalizeStateData(data.data) : createPartnerFallbackState();
     setPlannerStateListSet(partnerState, visibleListSetId);
 
+    applyThemeColors();
+
     if (state.activeListSet === "rj") {
       renderPartnerRjList();
+      renderMineRjScheduleList();
     } else {
       renderPartnerMsLists();
     }
@@ -894,6 +902,7 @@ function showAuthView(message = "", isError = false) {
   sharedRjRemoteAvailable = true;
   sharedRjRemoteNotice = "";
   pairingContext = createEmptyPairingContext();
+  applyThemeColors();
   closeSettingsModal();
   renderAll();
 
@@ -928,13 +937,15 @@ function recordTaskDeletion(plannerState, taskId) {
 
 // A missing row in an older snapshot is not a deletion. Only an explicit
 // deletion record or an expired completion can discard a task during sync.
-function reconcileTaskCollections(primary, secondary, primaryCollections, secondaryCollections, todayIds) {
+function reconcileTaskCollections(primary, secondary, primaryCollections, secondaryCollections, todayIds, isRjCollection = []) {
   primaryCollections.forEach((tasks, index) => {
+    if (!isRjCollection[index]) return;
     const cleaned = clearExpiredRjItems(tasks, todayIds[index], false, primary);
     if (cleaned !== tasks) tasks.splice(0, tasks.length, ...cleaned);
   });
   const primaryIds = new Set(primaryCollections.flatMap(tasks => tasks.map(task => task.id)));
   secondaryCollections = secondaryCollections.map((tasks, index) => {
+    if (!isRjCollection[index]) return tasks;
     tasks.forEach(task => {
       if (!primaryIds.has(task.id) && !isRecurringTask(task) && isCompletedBeforeDay(task, todayIds[index], false)) recordTaskDeletion(primary, task.id);
     });
@@ -952,7 +963,7 @@ function reconcileTaskCollections(primary, secondary, primaryCollections, second
   secondaryCollections.forEach((tasks, index) => {
     for (const task of tasks) {
       if (deletedIds.has(task.id) || presentIds.has(task.id)) continue;
-      if (!isRecurringTask(task) && isCompletedBeforeDay(task, todayIds[index])) continue;
+      if (isRjCollection[index] && !isRecurringTask(task) && isCompletedBeforeDay(task, todayIds[index])) continue;
       primaryCollections[index].push(structuredClone(task));
       presentIds.add(task.id);
     }
@@ -967,7 +978,8 @@ function reconcilePlannerStates(remote, local, preferLocal = false) {
   const collections = (value) => LIST_SET_IDS.flatMap((id) => LIST_TYPES.map((kind) => value.listSets[id].tasks[kind]));
   const todayId = formatDateParts(toTimezoneDate(new Date(), primary.settings.timezoneOffset, primary.settings.daylightSavingsAdjustment));
   const todayIds = LIST_SET_IDS.flatMap((id) => LIST_TYPES.map(() => id === "schedms" ? schedmsDailyPeriodId(new Date()) : todayId));
-  return reconcileTaskCollections(primary, secondary, collections(primary), secondary ? collections(secondary) : [], todayIds);
+  const isRjCollection = LIST_SET_IDS.flatMap((id) => LIST_TYPES.map(() => id === "rj"));
+  return reconcileTaskCollections(primary, secondary, collections(primary), secondary ? collections(secondary) : [], todayIds, isRjCollection);
 }
 
 function reconcileSharedStates(remote, local, preferLocal = false) {
@@ -975,7 +987,7 @@ function reconcileSharedStates(remote, local, preferLocal = false) {
   const primary = normalizeSharedRjState(useRemote ? remote : local);
   const secondary = useRemote ? local : remote;
   const collections = (value) => [value.tasks.todo, value.tasks.schedule];
-  return reconcileTaskCollections(primary, secondary, collections(primary), secondary ? collections(secondary) : [], [dailyPeriodId(new Date()), dailyPeriodId(new Date())]);
+  return reconcileTaskCollections(primary, secondary, collections(primary), secondary ? collections(secondary) : [], [dailyPeriodId(new Date()), dailyPeriodId(new Date())], [true, true]);
 }
 
 function applyReconciledTasks(current, merged, shared = false) {

@@ -76,36 +76,60 @@
       if (delay !== 1) throw Error(`Timer missed next midnight: ${mode} ${zone} DST ${dst}: ${delay}`);
       clock = resetAt.toISOString();
       callback();
-      const assertCleared = () => currentCollections().forEach(tasks => {
-        if (tasks.some(t => t.id.startsWith('done-'))) throw Error(`Completion survived midnight: ${mode} ${zone} DST ${dst}`);
-        if (!tasks.some(t => t.id.startsWith('open-') && !t.done)) throw Error('Unfinished task was lost');
-        if (!tasks.some(t => t.id.startsWith('repeat-') && !t.done)) throw Error('Recurring occurrence was not reset');
-      });
-      assertCleared();
+      const isThursdayReset = mode === 'schedms' && resetAt.getUTCDay() === 4;
+      const assertReset = () => {
+        if (mode === 'rj') {
+          currentCollections().forEach(tasks => {
+            if (tasks.some(t => t.id.startsWith('done-'))) throw Error(`Completion survived midnight: ${mode} ${zone} DST ${dst}`);
+            if (!tasks.some(t => t.id.startsWith('open-') && !t.done)) throw Error('Unfinished task was lost');
+            if (!tasks.some(t => t.id.startsWith('repeat-') && !t.done)) throw Error('Recurring occurrence was not reset');
+          });
+        } else {
+          const msTasks = state.listSets.schedms.tasks;
+          const dailyDone = msTasks.daily.find(t => t.id.startsWith('done-'));
+          if (!dailyDone || dailyDone.done) throw Error(`MS daily completion did not reset at midnight UTC: ${zone} DST ${dst}`);
+          if (!msTasks.daily.some(t => t.id.startsWith('open-') && !t.done)) throw Error('MS daily unfinished task was lost');
+
+          const weeklyDone = msTasks.weekly.find(t => t.id.startsWith('done-'));
+          if (!weeklyDone) throw Error(`MS weekly task was deleted: ${zone} DST ${dst}`);
+          if (isThursdayReset ? weeklyDone.done : !weeklyDone.done) {
+            throw Error(`MS weekly reset mismatch on Thursday=${isThursdayReset}: ${zone} DST ${dst}`);
+          }
+          if (!msTasks.weekly.some(t => t.id.startsWith('open-') && !t.done)) throw Error('MS weekly unfinished task was lost');
+
+          const persistentDone = msTasks.persistent.find(t => t.id.startsWith('done-'));
+          if (!persistentDone || !persistentDone.done) throw Error(`MS persistent task modified: ${zone} DST ${dst}`);
+          if (!msTasks.persistent.some(t => t.id.startsWith('open-') && !t.done)) throw Error('MS persistent unfinished task was lost');
+        }
+      };
+      assertReset();
       state = loadStateFromStorage(activeStorageKey); selfState = state;
       if (mode === 'rj') sharedRjState = loadSharedRjStateFromStorage('reset-pair');
-      assertCleared();
+      assertReset();
       // A later stale snapshot, even with a misleading newer save timestamp,
       // must not resurrect a completed one-time task as unfinished.
       staleBeforeCompletion.lastSavedAt = new NativeDate(resetAt.getTime() + 1000).toISOString();
       state = reconcilePlannerStates(staleBeforeCompletion, state); selfState = state;
       if (mode === 'rj') sharedRjState = reconcileSharedStates(staleShared, sharedRjState);
       runTimedUpdatesIfNeeded();
-      assertCleared();
+      assertReset();
       boundaries += 1;
     }
   }
-  check(true, `${boundaries} midnight simulations across ${TIMEZONE_OPTIONS.length} zones, both DST settings, IRL and MS: completed tasks clear, recurring tasks reset, unfinished tasks persist, reloads and stale sync stay cleared`);
+  check(true, `${boundaries} midnight simulations across ${TIMEZONE_OPTIONS.length} zones, both DST settings, IRL and MS: completed tasks clear in IRL, MS daily resets at midnight UTC, MS weekly resets on Thursday at midnight UTC, unfinished tasks persist, reloads and stale sync stay cleared`);
 
   clock = '2026-10-02T00:00:00Z'; setup('-08:00');
-  state.listSets.schedms.tasks.daily.push(task('ms', { done: true, completedOn: '2026-10-01' }));
+  state.listSets.schedms.tasks.daily.push(task('ms-daily', { done: true, completedOn: '2026-10-01' }));
+  state.listSets.schedms.tasks.weekly.push(task('ms-weekly', { done: true, completedOn: '2026-10-01' }));
   state.listSets.rj.tasks.persistent.push(task('irl', { done: true, completedOn: '2026-10-01' }));
   runTimedUpdatesIfNeeded();
-  check(!state.listSets.schedms.tasks.daily.length && state.listSets.rj.tasks.persistent.length === 1, 'At midnight UTC, MS clears while PST IRL stays until 08:00 UTC');
+  check(state.listSets.schedms.tasks.daily[0]?.done === false && state.listSets.schedms.tasks.weekly[0]?.done === true && state.listSets.rj.tasks.persistent.length === 1, 'At midnight UTC on Friday, MS daily resets while MS weekly stays completed and PST IRL stays until 08:00 UTC');
   clock = '2026-10-02T08:00:00Z'; runTimedUpdatesIfNeeded();
   check(!state.listSets.rj.tasks.persistent.length, 'PST IRL clears at its own midnight');
+  clock = '2026-10-08T00:00:00Z'; runTimedUpdatesIfNeeded();
+  check(state.listSets.schedms.tasks.weekly[0]?.done === false, 'MS weekly resets on Thursday at midnight UTC');
   state.activeListSet = 'schedms'; renderResetLabels();
-  check(els.dailyResetLabel.textContent.endsWith('UTC') && els.dailyResetLabel.textContent.includes('12:00'), 'MS reset label explicitly shows midnight UTC');
+  check(!els.dailyResetLabel.textContent.includes('UTC') && els.dailyResetLabel.textContent.includes('4:00') && els.weeklyResetLabel.textContent.includes('Wed'), 'MS reset label shows the reset time in the chosen timezone');
 
   // Exercise the real mocked cloud write path with already-current markers.
   setup();

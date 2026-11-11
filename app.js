@@ -1,5 +1,29 @@
-// Planner bootstrap, shared state, event wiring, task actions, and animations.
-// See README.md for the code map and script-loading contract.
+// ============================================================================
+// R&J PLANNER - APPLICATION CONTROLLER (app.js)
+// ============================================================================
+// TABLE OF CONTENTS:
+//   [APP-01] CONFIGURATION, STORAGE KEYS & CONSTANTS
+//   [APP-02] STATE FACTORIES & DEFAULT STATE
+//   [APP-03] DOM ELEMENT CACHE (els)
+//   [APP-04] THEME MANAGEMENT (Light / Dark Mode)
+//   [APP-05] BOOTSTRAP INITIALIZATION
+//   [APP-06] MIDNIGHT RESETS & RESET SCHEDULER
+//   [APP-07] EVENT WIRING & LISTENERS
+//   [APP-08] CUSTOM DROPDOWN SELECT CONTROLS
+//   [APP-09] LIST SETS & TAB NAVIGATION (IRL vs MS)
+//   [APP-10] RECURRING OPTIONS & DAY PICKERS
+//   [APP-11] TASK COMPLETION & COMPLETION ORDERS
+//   [APP-12] SETTINGS UI & PAIRING HYDRATION
+//   [APP-13] TIMED EXPIRATIONS & MIDNIGHT RESET TIMERS
+//   [APP-14] LOCAL STORAGE DATA NORMALIZATION & HYDRATION
+// ============================================================================
+// Search for [APP-XX] to jump directly to any subsystem.
+// See README.md for script-loading contract.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// [APP-01] CONFIGURATION, STORAGE KEYS & CONSTANTS
+// ----------------------------------------------------------------------------
 
 const STORAGE_KEY = "schedms-data-v1";
 const SUPABASE_URL = "https://qvovatdgthvolgenmnir.supabase.co";
@@ -76,21 +100,31 @@ const TIMEZONE_OPTIONS = [
   ["+14:00", "UTC+14 (LINT)"],
 ].filter(([offset]) => isWholeHourOffset(offset));
 
+const DEFAULT_USER_COLOR = "#3d7a5a";
+const DEFAULT_PARTNER_COLOR = "#b35d67";
+
 const defaultState = {
   settings: {
     timezoneOffset: DEFAULT_TIMEZONE_OFFSET,
     daylightSavingsAdjustment: 0,
     pairedAccountDisplayName: "",
+    theme: "light",
+    userColor: DEFAULT_USER_COLOR,
   },
   lastSavedAt: "",
   deletedTaskIds: [],
   activeListSet: INITIAL_LIST_SET_ID,
+  activeMsCadence: "daily",
   listSets: {
     schedms: createDefaultListSetState(),
     rj: createDefaultListSetState(),
   },
 };
 
+
+// ----------------------------------------------------------------------------
+// [APP-02] STATE FACTORIES & DEFAULT STATE
+// ----------------------------------------------------------------------------
 function createDefaultListSetState() {
   return {
     periodIds: {
@@ -177,6 +211,7 @@ let recurringCreateMode = false;
 let recurringFormPinned = false;
 let recurringFormCloseTimer = null;
 let rjComposerOwner = "mine";
+let activeRjComposerKind = RJ_LIST_KIND_TODO;
 let openRjSchedulePanel = null;
 let rjSchedulePanelCloseTimer = null;
 let completionAudioContext = null;
@@ -211,6 +246,10 @@ let pairingContext = {
 let pairingRefreshInFlight = false;
 const pendingAppendAnimations = new Set();
 
+
+// ----------------------------------------------------------------------------
+// [APP-03] DOM ELEMENT CACHE (els)
+// ----------------------------------------------------------------------------
 const els = {
   app: document.querySelector(".app"),
   appHeader: document.getElementById("app-header"),
@@ -311,6 +350,7 @@ const els = {
       empty: document.getElementById("partner-ms-persistent-empty"),
     },
   },
+  schedmsHorizonNav: document.getElementById("schedms-horizon-nav"),
   schedmsQuickAdd: document.getElementById("schedms-quick-add"),
   schedmsAddForm: document.getElementById("schedms-add-form"),
   schedmsInput: document.getElementById("schedms-input"),
@@ -358,16 +398,144 @@ const els = {
   weeklyResetLabel: document.getElementById("weekly-reset-label"),
   timezoneOffset: document.getElementById("timezone-offset"),
   dstAdjustment: document.getElementById("dst-adjustment"),
+  themeSelect: document.getElementById("theme-select"),
+  userColorPicker: document.getElementById("user-color-picker"),
+  userColorValue: document.getElementById("user-color-value"),
+  colorSwatches: document.getElementById("color-swatches"),
+  rjScheduleDate: document.getElementById("rj-schedule-date"),
+  rjScheduleDateWrap: document.getElementById("rj-schedule-date-wrap"),
+  mineTodoCard: document.getElementById("mine-todo-card"),
   saveStatus: document.getElementById("save-status"),
 };
 
 let dailyResetTimeout = null;
 
+
+// ----------------------------------------------------------------------------
+// [APP-04] THEME MANAGEMENT (Light / Dark Mode, Custom User Colors)
+// ----------------------------------------------------------------------------
+function normalizeTheme(value) {
+  return value === "dark" ? "dark" : "light";
+}
+
+function applyTheme(theme = "light") {
+  const normalizedTheme = normalizeTheme(theme);
+  document.documentElement.dataset.theme = normalizedTheme;
+  document.body.classList.toggle("theme-dark", normalizedTheme === "dark");
+  document.body.classList.toggle("theme-light", normalizedTheme === "light");
+}
+
+function normalizeHexColor(val, fallback = DEFAULT_USER_COLOR) {
+  if (typeof val === "string") {
+    const clean = val.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(clean)) {
+      return clean.toLowerCase();
+    }
+    if (/^#[0-9a-fA-F]{3}$/.test(clean)) {
+      return (
+        "#" +
+        clean[1] +
+        clean[1] +
+        clean[2] +
+        clean[2] +
+        clean[3] +
+        clean[3]
+      ).toLowerCase();
+    }
+  }
+  return fallback;
+}
+
+function hexToRgb(hex) {
+  if (!hex || typeof hex !== "string") return { r: 61, g: 122, b: 90 };
+  let clean = hex.replace("#", "").trim();
+  if (clean.length === 3) clean = clean.split("").map((c) => c + c).join("");
+  const num = parseInt(clean, 16);
+  if (isNaN(num)) return { r: 61, g: 122, b: 90 };
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+
+function rgbToHex(r, g, b) {
+  return (
+    "#" +
+    [r, g, b]
+      .map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0"))
+      .join("")
+  );
+}
+
+function blendHexColors(hex1, hex2, ratio = 0.5) {
+  const c1 = hexToRgb(hex1);
+  const c2 = hexToRgb(hex2);
+  const r = c1.r * (1 - ratio) + c2.r * ratio;
+  const g = c1.g * (1 - ratio) + c2.g * ratio;
+  const b = c1.b * (1 - ratio) + c2.b * ratio;
+  return rgbToHex(r, g, b);
+}
+
+function getUserColor() {
+  return normalizeHexColor(state?.settings?.userColor, DEFAULT_USER_COLOR);
+}
+
+function getPartnerColor() {
+  return normalizeHexColor(partnerState?.settings?.userColor, DEFAULT_PARTNER_COLOR);
+}
+
+function getSharedMixedColor() {
+  return blendHexColors(getUserColor(), getPartnerColor());
+}
+
+function applyThemeColors() {
+  const myColor = getUserColor();
+  const partnerColor = getPartnerColor();
+  const sharedColor = getSharedMixedColor();
+  document.documentElement.style.setProperty("--user-color", myColor);
+  document.documentElement.style.setProperty("--partner-color", partnerColor);
+  document.documentElement.style.setProperty("--shared-color", sharedColor);
+  if (document.body) {
+    document.body.style.setProperty("--user-color", myColor);
+    document.body.style.setProperty("--partner-color", partnerColor);
+    document.body.style.setProperty("--shared-color", sharedColor);
+  }
+}
+
+function setUserColor(color) {
+  const normalized = normalizeHexColor(color, DEFAULT_USER_COLOR);
+  state.settings.userColor = normalized;
+  applyThemeColors();
+  updateColorPickerUI();
+  saveState();
+  renderAll();
+}
+
+function updateColorPickerUI() {
+  const currentColor = getUserColor();
+  if (els.userColorPicker) {
+    els.userColorPicker.value = currentColor;
+  }
+  if (els.userColorValue) {
+    els.userColorValue.textContent = currentColor.toUpperCase();
+  }
+}
+
+function updateColorSwatchesUI() {
+  updateColorPickerUI();
+}
+
+
+// ----------------------------------------------------------------------------
+// [APP-05] BOOTSTRAP INITIALIZATION
+// ----------------------------------------------------------------------------
 initialize();
 
 function initialize() {
   showInitialListSet();
   selfState = state;
+  applyTheme(state?.settings?.theme);
+  applyThemeColors();
+  if (els.rjScheduleDate && !els.rjScheduleDate.value) {
+    els.rjScheduleDate.value = dailyPeriodId(new Date());
+  }
   populateTimezoneOptions();
   populateRecurringShowDayOptions();
   updateRecurringShowDaysVisibility();
@@ -389,6 +557,10 @@ function initialize() {
   initializeSupabaseSync();
 }
 
+
+// ----------------------------------------------------------------------------
+// [APP-06] MIDNIGHT RESETS & RESET SCHEDULER
+// ----------------------------------------------------------------------------
 function tickResets() {
   if (!isReadOnlyView() && runTimedUpdatesIfNeeded()) {
     renderAll();
@@ -443,6 +615,10 @@ function createRecurringShowDayOption(labelText, value, checked) {
   return label;
 }
 
+
+// ----------------------------------------------------------------------------
+// [APP-07] EVENT WIRING & LISTENERS
+// ----------------------------------------------------------------------------
 function wireEvents() {
   initializeCustomSelects();
 
@@ -504,7 +680,34 @@ function wireEvents() {
     });
   });
 
+  if (els.userColorPicker) {
+    const handleColorInput = (e) => {
+      setUserColor(e.target.value);
+    };
+    els.userColorPicker.addEventListener("input", handleColorInput);
+    els.userColorPicker.addEventListener("change", handleColorInput);
+  }
+
+  if (els.colorSwatches) {
+    els.colorSwatches.addEventListener("click", (e) => {
+      const btn = e.target.closest(".color-swatch-btn");
+      if (btn && btn.dataset.color) {
+        setUserColor(btn.dataset.color);
+      }
+    });
+  }
+
+  els.rjTargetButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeRjComposerKind = btn.dataset.rjKind;
+      if (els.rjScheduleDateWrap) {
+        els.rjScheduleDateWrap.hidden = activeRjComposerKind !== RJ_LIST_KIND_SCHEDULE;
+      }
+    });
+  });
+
   els.schedmsAddForm.addEventListener("submit", handleSchedmsAddSubmit);
+  wireSchedmsHorizonTabs();
   document.addEventListener("click", handleTaskEditOutsideClick);
 
   Object.entries(els.lists).forEach(([listType, listEls]) => {
@@ -541,8 +744,26 @@ function wireEvents() {
     renderAll();
   });
 
+  if (els.themeSelect) {
+    els.themeSelect.addEventListener("change", () => {
+      if (isReadOnlyView()) {
+        hydrateSettingsUI();
+        return;
+      }
+
+      state.settings.theme = normalizeTheme(els.themeSelect.value);
+      applyTheme(state.settings.theme);
+      saveState();
+      renderAll();
+    });
+  }
+
 }
 
+
+// ----------------------------------------------------------------------------
+// [APP-08] CUSTOM DROPDOWN SELECT CONTROLS
+// ----------------------------------------------------------------------------
 function initializeCustomSelects() {
   document.querySelectorAll("select").forEach(enhanceSelect);
 
@@ -810,6 +1031,20 @@ function setSchedmsAddError(message) {
   els.schedmsAddError.textContent = message;
 }
 
+function setSchedmsCadence(cadence) {
+  state.activeMsCadence = ["daily", "weekly", "persistent", "all"].includes(cadence) ? cadence : "daily";
+  saveState();
+  renderSchedmsHorizon();
+}
+
+function wireSchedmsHorizonTabs() {
+  document.querySelectorAll(".schedms-horizon-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      setSchedmsCadence(tab.dataset.msCadence);
+    });
+  });
+}
+
 function playTaskCompleteSound(isPriority = false) {
   const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
 
@@ -902,10 +1137,16 @@ function handleTaskFormSubmit(form, submitter = null) {
   }
 
   if (state.activeListSet === "rj" && listType === "persistent") {
+    const kind = submitter?.dataset?.rjKind || activeRjComposerKind || RJ_LIST_KIND_TODO;
+    const chosenDate =
+      kind === RJ_LIST_KIND_SCHEDULE && els.rjScheduleDate?.value
+        ? els.rjScheduleDate.value
+        : null;
     addNewRjItem(
       text,
       rjComposerOwner,
-      submitter?.dataset?.rjKind || RJ_LIST_KIND_TODO
+      kind,
+      chosenDate
     );
     return;
   }
@@ -913,7 +1154,7 @@ function handleTaskFormSubmit(form, submitter = null) {
   addNewTask(listType, text, isTaskOptionsSubmit);
 }
 
-function addNewRjItem(text, owner, kind) {
+function addNewRjItem(text, owner, kind, chosenDate = null) {
   const normalizedOwner = owner === "shared" ? "shared" : "mine";
   const normalizedKind = kind === RJ_LIST_KIND_SCHEDULE ? RJ_LIST_KIND_SCHEDULE : RJ_LIST_KIND_TODO;
 
@@ -924,6 +1165,10 @@ function addNewRjItem(text, owner, kind) {
 
   const taskId = crypto.randomUUID();
   const task = createRjListTask(taskId, text, normalizedKind);
+
+  if (normalizedKind === RJ_LIST_KIND_SCHEDULE && chosenDate) {
+    task.showOnDate = chosenDate;
+  }
 
   if (normalizedOwner === "shared") {
     sharedRjState.tasks[normalizedKind].push(task);
@@ -1060,6 +1305,10 @@ function setFormError(listType, message) {
   els.lists[listType].error.textContent = message;
 }
 
+
+// ----------------------------------------------------------------------------
+// [APP-09] LIST SETS & TAB NAVIGATION (IRL vs MS)
+// ----------------------------------------------------------------------------
 function switchListSet(listSetId) {
   const nextListSetId = normalizeListSetId(listSetId);
 
@@ -1148,6 +1397,10 @@ function closeRecurringForm({ immediate = false } = {}) {
   }
 }
 
+
+// ----------------------------------------------------------------------------
+// [APP-10] RECURRING OPTIONS & DAY PICKERS
+// ----------------------------------------------------------------------------
 function openRecurringFormPopover() {
   if (!isReadOnlyView()) {
     setRecurringCreateMode(true);
@@ -1665,6 +1918,10 @@ function getNextCompletionOrder() {
   return maxOrder + 1;
 }
 
+
+// ----------------------------------------------------------------------------
+// [APP-11] TASK COMPLETION & COMPLETION ORDERS
+// ----------------------------------------------------------------------------
 function setTaskCompletionState(task, done) {
   task.done = done;
 
@@ -1675,16 +1932,6 @@ function setTaskCompletionState(task, done) {
     delete task.completedOrder;
     delete task.completedOn;
   }
-}
-
-function resetTaskCompletion(task) {
-  const nextTask = {
-    ...task,
-    done: false,
-  };
-
-  delete nextTask.completedOrder;
-  return nextTask;
 }
 
 function backfillCompletionOrders(targetState) {
@@ -2361,18 +2608,40 @@ function mergeVisibleTaskOrder(groupTasks, reorderedVisibleTasks, listType, shou
   });
 }
 
+
+// ----------------------------------------------------------------------------
+// [APP-12] SETTINGS UI & PAIRING HYDRATION
+// ----------------------------------------------------------------------------
 function hydrateSettingsUI() {
   els.timezoneOffset.value = state.settings.timezoneOffset;
   els.dstAdjustment.checked = state.settings.daylightSavingsAdjustment === 1;
   els.pairedDisplayName.value = selfState?.settings?.pairedAccountDisplayName || "";
+  if (els.themeSelect) {
+    els.themeSelect.value = normalizeTheme(state?.settings?.theme);
+    syncCustomSelect(els.themeSelect);
+  }
+  applyTheme(state?.settings?.theme);
+  applyThemeColors();
+  updateColorSwatchesUI();
   syncCustomSelect(els.timezoneOffset);
 }
 
+
+// ----------------------------------------------------------------------------
+// [APP-13] TIMED EXPIRATIONS & MIDNIGHT RESET TIMERS
+// ----------------------------------------------------------------------------
 function runTimedUpdatesIfNeeded() {
+  const now = new Date();
   const didReset = runResetsIfNeeded();
   const didRefreshRecurring = refreshRecurringTasksIfNeeded();
   const didResetShared = resetSharedRjDayIfNeeded();
-  const didResetPartner = partnerState ? resetRjDay(partnerState.listSets.rj, dailyPeriodId(new Date())) : false;
+  let didResetPartner = false;
+  if (partnerState) {
+    didResetPartner = resetRjDay(partnerState.listSets.rj, dailyPeriodId(now));
+    if (partnerState.listSets?.schedms) {
+      didResetPartner = resetSchedmsSet(partnerState.listSets.schedms, now) || didResetPartner;
+    }
+  }
 
   return didReset || didRefreshRecurring || didResetShared || didResetPartner;
 }
@@ -2390,31 +2659,70 @@ function refreshRecurringTasksIfNeeded() {
   return changed;
 }
 
-function runResetsIfNeeded() {
-  const now = new Date();
+function resetSchedmsDailyTasks(tasks, nextDailyPeriodId, isNewDay) {
+  let changed = false;
+  tasks.forEach((task) => {
+    if (!task.done) return;
+    const completedOn = normalizeDateId(task.completedOn);
+    if (completedOn ? completedOn < nextDailyPeriodId : isNewDay) {
+      task.done = false;
+      delete task.completedOrder;
+      delete task.completedOn;
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function resetSchedmsWeeklyTasks(tasks, nextWeeklyPeriodId, isNewWeek) {
+  let changed = false;
+  tasks.forEach((task) => {
+    if (!task.done) return;
+    const completedOn = normalizeDateId(task.completedOn);
+    if (completedOn ? completedOn < nextWeeklyPeriodId : isNewWeek) {
+      task.done = false;
+      delete task.completedOrder;
+      delete task.completedOn;
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function resetSchedmsSet(listSet, now) {
   const nextDailyPeriodId = schedmsDailyPeriodId(now);
   const nextWeeklyPeriodId = schedmsWeeklyPeriodId(now);
-  const listSet = state.listSets.schedms;
-  let didReset = false;
-  const clearUndated = Boolean(listSet.periodIds.daily && listSet.periodIds.daily < nextDailyPeriodId);
-  for (const kind of LIST_TYPES) {
-    const cleaned = clearExpiredRjItems(listSet.tasks[kind], nextDailyPeriodId, clearUndated, state);
-    if (cleaned !== listSet.tasks[kind]) { listSet.tasks[kind] = cleaned; didReset = true; }
+  let changed = false;
+
+  const isNewDaily = Boolean(!listSet.periodIds.daily || listSet.periodIds.daily < nextDailyPeriodId);
+  if (resetSchedmsDailyTasks(listSet.tasks.daily, nextDailyPeriodId, isNewDaily)) {
+    changed = true;
   }
-  if (!listSet.periodIds.daily || listSet.periodIds.daily < nextDailyPeriodId) {
+  if (isNewDaily) {
     listSet.periodIds.daily = nextDailyPeriodId;
-    didReset = true;
+    changed = true;
   }
 
-  if (listSet.periodIds.weekly !== nextWeeklyPeriodId) {
+  const isNewWeekly = Boolean(!listSet.periodIds.weekly || listSet.periodIds.weekly < nextWeeklyPeriodId);
+  if (resetSchedmsWeeklyTasks(listSet.tasks.weekly, nextWeeklyPeriodId, isNewWeekly)) {
+    changed = true;
+  }
+  if (isNewWeekly) {
     listSet.periodIds.weekly = nextWeeklyPeriodId;
-    didReset = true;
+    changed = true;
   }
 
   if (!listSet.periodIds.persistent || listSet.periodIds.persistent < nextDailyPeriodId) {
     listSet.periodIds.persistent = nextDailyPeriodId;
-    didReset = true;
+    changed = true;
   }
+
+  return changed;
+}
+
+function runResetsIfNeeded() {
+  const now = new Date();
+  let didReset = resetSchedmsSet(state.listSets.schedms, now);
   didReset = resetRjDay(state.listSets.rj, dailyPeriodId(now), state) || didReset;
 
   if (didReset) {
@@ -2428,10 +2736,6 @@ function isCompletedBeforeDay(task, todayId, clearUndated = true) {
   if (task.done !== true) return false;
   const completedOn = normalizeDateId(task.completedOn) || normalizeDateId(task.lastCompletedDate);
   return completedOn ? completedOn < todayId : clearUndated;
-}
-
-function removeCompletedToDoAssignments(tasks, todayId = schedmsDailyPeriodId(new Date())) {
-  return clearExpiredRjItems(tasks, todayId);
 }
 
 // Unfinished one-time items carry forward, including overdue scheduled items.
@@ -2453,14 +2757,16 @@ function clearExpiredRjItems(tasks, todayId, clearUndated = true, ownerState = n
 }
 
 function resetRjDay(listSet, todayId, ownerState = null) {
-  const previousId = listSet.periodIds.persistent;
+  const previousId = listSet?.periodIds?.persistent;
   const didAdvance = !previousId || previousId < todayId;
   let changed = false;
-  Object.keys(listSet.tasks).forEach((kind) => {
-    const cleaned = clearExpiredRjItems(listSet.tasks[kind], todayId, Boolean(previousId && previousId < todayId), ownerState);
-    if (cleaned !== listSet.tasks[kind]) { listSet.tasks[kind] = cleaned; changed = true; }
-  });
-  if (didAdvance) {
+  if (listSet?.tasks) {
+    Object.keys(listSet.tasks).forEach((kind) => {
+      const cleaned = clearExpiredRjItems(listSet.tasks[kind], todayId, Boolean(previousId && previousId < todayId), ownerState);
+      if (cleaned !== listSet.tasks[kind]) { listSet.tasks[kind] = cleaned; changed = true; }
+    });
+  }
+  if (didAdvance && listSet?.periodIds) {
     listSet.periodIds.persistent = todayId;
     changed = true;
   }
@@ -2581,6 +2887,10 @@ function loadState() {
   return loadStateFromStorage(activeStorageKey);
 }
 
+
+// ----------------------------------------------------------------------------
+// [APP-14] LOCAL STORAGE DATA NORMALIZATION & HYDRATION
+// ----------------------------------------------------------------------------
 function loadStateFromStorage(storageKey) {
   try {
     const raw = localStorage.getItem(storageKey);
@@ -2625,9 +2935,12 @@ function normalizeStateData(parsed) {
       timezoneOffset: normalizeTimezoneOffset(parsed?.settings?.timezoneOffset),
       daylightSavingsAdjustment: normalizeDstAdjustment(parsed?.settings?.daylightSavingsAdjustment),
       pairedAccountDisplayName: normalizePairedDisplayName(parsed?.settings?.pairedAccountDisplayName),
+      theme: normalizeTheme(parsed?.settings?.theme),
+      userColor: normalizeHexColor(parsed?.settings?.userColor, DEFAULT_USER_COLOR),
     },
     lastSavedAt: normalizeSavedAt(parsed?.lastSavedAt),
     activeListSet: normalizeListSetId(parsed?.activeListSet),
+    activeMsCadence: ["daily", "weekly", "persistent", "all"].includes(parsed?.activeMsCadence) ? parsed.activeMsCadence : "daily",
     deletedTaskIds: normalizeDeletedTaskIds(parsed?.deletedTaskIds),
     listSets,
   };

@@ -1,35 +1,144 @@
-/* Base styles, components, and responsive overrides remain in cascade order. */
+/* ==========================================================================
+   R&J PLANNER STYLESHEET
+   ==========================================================================
+   TABLE OF CONTENTS:
+     [SEC-01] DESIGN TOKENS & THEMES (Light / Dark Mode, Pastel Accents)
+     [SEC-02] BASE RESETS, TYPOGRAPHY & FORM INPUTS
+     [SEC-03] APPLICATION HEADER, AUTH & SESSION CONTROLS
+     [SEC-04] TASK CARDS, LIST ITEMS & DRAG SURFACES
+     [SEC-05] COMPONENT PALETTES, DIALOGS & SETTINGS MODAL
+     [SEC-06] IRL MODE DUAL-COLUMN LAYOUT & COMPOSER
+     [SEC-07] RECURRING PANEL, SCHEDULE PANEL & DAY PICKERS
+     [SEC-08] DROPDOWNS, CUSTOM SELECTS & ANIMATIONS
+     [SEC-09] REFINED LAYOUT OVERRIDES, POPUPS & SCROLLING
+     [SEC-10] COMPACT CONTROLS, IRL TARGET GRID & OWNER TOGGLE
+     [SEC-11] SHARED SURFACES & RECURRING OVERVIEWS
+     [SEC-12] RESPONSIVE BREAKPOINTS (Mobile & Tablet)
+   ==========================================================================
+   Search for [SEC-XX] to jump directly to any section.
+   Rules remain in cascade order. See README.md for styling contract.
+   ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   [SEC-01] DESIGN TOKENS & THEMES
+   -------------------------------------------------------------------------- */
 :root {
-  --bg: #5d7163;
-  --panel: #5d7163;
-  --muted: #f4efd8;
-  --text: #f4efd8;
-  --accent: #f4efd8;
-  --accent-soft: #4b5f52;
-  --shared-surface: #54685a;
-  --shared-surface-hover: #54685a;
-  --focus-ring: rgba(244, 239, 216, 0.3);
-  --control-bg: #5d7163;
-  --control-border: #f4efd8;
-  --control-hover: #53675a;
-  --border: #f4efd8;
-  --danger-bg: #4b5f52;
-  --danger-border: #f4efd8;
-  --danger-text: #f4efd8;
-  --task-bg: #5d7163;
-  --task-hover: #53675a;
-  --scrollbar-thumb: rgba(244, 239, 216, 0.54);
-  --scrollbar-thumb-hover: rgba(244, 239, 216, 0.76);
-  --scrollbar-track: rgba(75, 95, 82, 0.38);
+  --user-color: #3d7a5a;
+  --partner-color: #b35d67;
+  --shared-color: #786b60;
+}
+
+:root,
+:root[data-theme="light"],
+body.theme-light {
+  --bg: #f7f4ee;
+  --panel: #fffdfa;
+  --muted: #6b665c;
+  --text: #2c2925;
+  --accent: #2c2925;
+  --accent-soft: #ede8df;
+  --shared-surface: #ede8df;
+  --shared-surface-hover: #e2ddd3;
+  --shared-border: #d5d0c5;
+  --shared-task-bg: rgba(255, 253, 250, 0.75);
+  --shared-task-hover: rgba(255, 253, 250, 0.98);
+  --focus-ring: rgba(61, 122, 90, 0.22);
+  --control-bg: #fffdfa;
+  --control-border: #d5d0c5;
+  --control-hover: #ede9e0;
+  --border: #e2ded5;
+  --danger-bg: #fdf2f2;
+  --danger-border: #f8c8cb;
+  --danger-text: #c03940;
+  --gold: #d97706;
+  --gold-hover: #fef3c7;
+  --task-bg: #fffdfa;
+  --task-hover: #f3efe7;
+  --scrollbar-thumb: #d5d0c5;
+  --scrollbar-thumb-hover: #b8b2a5;
+  --scrollbar-track: #f7f4ee;
+  --card-shadow: 0 1px 3px 0 rgba(44, 41, 37, 0.05), 0 1px 2px -1px rgba(44, 41, 37, 0.04);
+  --card-shadow-hover: 0 4px 8px -1px rgba(44, 41, 37, 0.07), 0 2px 4px -2px rgba(44, 41, 37, 0.04);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 16px;
   --space-xs: 0.45rem;
   --space-sm: 0.65rem;
   --space-md: 1rem;
   --space-lg: 1.35rem;
   --recurring-panel-motion: 180ms;
   --recurring-panel-width: clamp(17rem, 28vw, 21rem);
+
+  /* Modern Pastel Accents */
+  --pastel-daily-bg: #eef7f4;
+  --pastel-daily-text: #1d6e5d;
+  --pastel-daily-border: #aee0d4;
+  --pastel-weekly-bg: #f6f0fb;
+  --pastel-weekly-text: #6b3ca8;
+  --pastel-weekly-border: #decaf4;
+  --pastel-todo-bg: #fdf8ec;
+  --pastel-todo-text: #8e581c;
+  --pastel-todo-border: #f2deb5;
+  --pastel-irl-bg: #fdf0f2;
+  --pastel-irl-text: #b6344f;
+  --pastel-irl-border: #f7c3cc;
+  --pastel-emerald-bg: #edf7f0;
+  --pastel-emerald-text: #1f6e3c;
+  --pastel-emerald-border: #b8e1c2;
 }
 
+:root[data-theme="dark"],
+body.theme-dark {
+  --bg: #121614;
+  --panel: #1b221e;
+  --muted: #95a59a;
+  --text: #f4efd8;
+  --accent: #f4efd8;
+  --accent-soft: #253129;
+  --shared-surface: #222d26;
+  --shared-surface-hover: #2b3930;
+  --shared-border: rgba(244, 239, 216, 0.25);
+  --shared-task-bg: rgba(255, 255, 255, 0.05);
+  --shared-task-hover: rgba(255, 255, 255, 0.1);
+  --focus-ring: rgba(244, 239, 216, 0.3);
+  --control-bg: #1b221e;
+  --control-border: rgba(244, 239, 216, 0.28);
+  --control-hover: #26312a;
+  --border: rgba(244, 239, 216, 0.2);
+  --danger-bg: #341d1e;
+  --danger-border: #6e3336;
+  --danger-text: #fca5a5;
+  --gold: #fbbf24;
+  --gold-hover: rgba(251, 191, 36, 0.18);
+  --task-bg: #1b221e;
+  --task-hover: #242c27;
+  --scrollbar-thumb: rgba(244, 239, 216, 0.25);
+  --scrollbar-thumb-hover: rgba(244, 239, 216, 0.45);
+  --scrollbar-track: rgba(18, 22, 20, 0.6);
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  --card-shadow-hover: 0 6px 24px rgba(0, 0, 0, 0.45);
+
+  --pastel-daily-bg: rgba(20, 184, 166, 0.16);
+  --pastel-daily-text: #5eead4;
+  --pastel-daily-border: rgba(94, 234, 212, 0.3);
+  --pastel-weekly-bg: rgba(168, 85, 247, 0.16);
+  --pastel-weekly-text: #d8b4fe;
+  --pastel-weekly-border: rgba(216, 180, 254, 0.3);
+  --pastel-todo-bg: rgba(245, 158, 11, 0.16);
+  --pastel-todo-text: #fcd34d;
+  --pastel-todo-border: rgba(252, 211, 77, 0.3);
+  --pastel-irl-bg: rgba(244, 63, 94, 0.16);
+  --pastel-irl-text: #fda4af;
+  --pastel-irl-border: rgba(253, 164, 175, 0.3);
+  --pastel-emerald-bg: rgba(16, 185, 129, 0.16);
+  --pastel-emerald-text: #6ee7b7;
+  --pastel-emerald-border: rgba(110, 231, 183, 0.3);
+}
+
+
+/* --------------------------------------------------------------------------
+   [SEC-02] BASE RESETS, TYPOGRAPHY & FORM INPUTS
+   -------------------------------------------------------------------------- */
 * {
   box-sizing: border-box;
 }
@@ -241,7 +350,7 @@ button:disabled {
 
 button:focus-visible,
 select:focus-visible,
-input:focus-visible {
+input:not([type="checkbox"]):focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
   border-color: var(--accent);
@@ -252,21 +361,18 @@ input:focus-visible {
 }
 
 .app.rj-mode {
-  --danger-bg: #4b5f52;
-  --danger-border: #f4efd8;
-  --danger-text: #f4efd8;
   height: 100vh;
   min-height: 0;
   overflow: hidden;
 }
 
 .app.rj-mode .settings-trigger:hover {
-  background: #e8efe7;
-  border-color: #445e4f;
+  background: var(--control-hover);
+  border-color: var(--border);
 }
 
 .app.rj-mode .settings-dialog {
-  box-shadow: 0 24px 70px rgba(55, 72, 54, 0.2);
+  box-shadow: var(--card-shadow);
 }
 
 .list-stack {
@@ -302,14 +408,14 @@ input:focus-visible {
 }
 
 .app.rj-mode .partner-rj-card .task-item:hover {
-  background: #e8eee3;
-  border-color: #a9b8ac;
+  background: var(--task-hover);
+  border-color: var(--border);
   box-shadow: none;
 }
 
 .app.rj-mode .partner-rj-card .task-item.done:hover {
-  background: #edf4eb;
-  border-color: #9fb0a4;
+  background: var(--task-hover);
+  border-color: var(--border);
 }
 
 .todo-card[hidden] {
@@ -848,7 +954,7 @@ input.edit-morph-target {
   color: #526356;
 }
 
-input,
+input:not([type="checkbox"]):not([type="color"]),
 select {
   font: inherit;
   width: 100%;
@@ -861,6 +967,10 @@ select {
   font-size: 0.85rem;
 }
 
+
+/* --------------------------------------------------------------------------
+   [SEC-04] TASK CARDS, LIST ITEMS & DRAG SURFACES
+   -------------------------------------------------------------------------- */
 .task-list {
   position: relative;
   list-style: none;
@@ -1028,14 +1138,16 @@ select {
 
 .task-main {
   display: flex;
-  gap: 0.7rem;
+  align-items: center;
+  gap: 0.55rem;
   flex: 1;
   min-width: 0;
   touch-action: manipulation;
 }
 
-.task-main input[type="checkbox"] {
-  display: none;
+.task-main input[type="checkbox"],
+.task-item input[type="checkbox"] {
+  display: none !important;
 }
 
 .task-copy {
@@ -1258,12 +1370,30 @@ select {
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0;
+  cursor: pointer;
+  user-select: none;
 }
 
 .checkbox-option input {
-  width: auto;
+  width: 1.15rem;
+  height: 1.15rem;
+  min-height: auto;
+  padding: 0;
   margin: 0;
   accent-color: var(--accent);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  border-radius: 3px;
+}
+
+.checkbox-option input:focus,
+.checkbox-option input:focus-visible,
+.checkbox-option input:active {
+  outline: none;
+  box-shadow: none;
+  border: none;
 }
 
 .sr-only {
@@ -1278,7 +1408,11 @@ select {
   border: 0;
 }
 
-/* Component appearance */
+
+/* --------------------------------------------------------------------------
+   [SEC-05] COMPONENT PALETTES, DIALOGS & SETTINGS MODAL
+   -------------------------------------------------------------------------- */
+
 
 body {
   line-height: 1.48;
@@ -1345,7 +1479,7 @@ input::placeholder {
 .persistent-card .task-item.done:hover,
 .app.rj-mode .persistent-card .task-item.done:hover,
 .app.rj-mode .persistent-card .task-item.recurring-task.done:hover {
-  background: #526458;
+  background: var(--task-hover);
 }
 
 .task-action-btn:hover {
@@ -1398,25 +1532,6 @@ input::placeholder {
   background-clip: content-box;
 }
 
-.app.rj-mode {
-  --bg: #5d7163;
-  --panel: #5d7163;
-  --muted: #f4efd8;
-  --text: #f4efd8;
-  --accent: #f4efd8;
-  --accent-soft: #4b5f52;
-  --focus-ring: rgba(244, 239, 216, 0.3);
-  --border: #f4efd8;
-  --control-bg: #5d7163;
-  --control-border: #f4efd8;
-  --control-hover: #53675a;
-  --task-bg: #5d7163;
-  --task-hover: #53675a;
-  --scrollbar-thumb: rgba(244, 239, 216, 0.54);
-  --scrollbar-thumb-hover: rgba(244, 239, 216, 0.76);
-  --scrollbar-track: rgba(75, 95, 82, 0.38);
-}
-
 .app.rj-mode .settings-trigger,
 .app.rj-mode .persistent-card,
 .app.rj-mode .recurring-panel-toggle {
@@ -1449,7 +1564,7 @@ body:has(.app.rj-mode),
 }
 
 .app-header {
-  border-bottom-color: rgba(244, 239, 216, 0.34);
+  border-bottom: 1px solid var(--border);
 }
 
 button,
@@ -1518,14 +1633,13 @@ button:not(:disabled):not(.settings-backdrop):active,
 .weekly-card .task-item,
 .persistent-card .task-item,
 .app.rj-mode .persistent-card .task-item,
-.app.rj-mode .persistent-card .task-item.recurring-task,
 .recurring-summary-item,
 .app.rj-mode .recurring-summary-item,
 .day-chip span,
 .app.rj-mode .day-chip span {
   color: var(--text);
   background: var(--task-bg);
-  border-color: rgba(244, 239, 216, 0.56);
+  border-color: var(--border);
   box-shadow: none;
 }
 
@@ -1534,7 +1648,6 @@ button:not(:disabled):not(.settings-backdrop):active,
 .weekly-card .task-item:hover,
 .persistent-card .task-item:hover,
 .app.rj-mode .persistent-card .task-item:hover,
-.app.rj-mode .persistent-card .task-item.recurring-task:hover,
 .recurring-summary-item:hover,
 .app.rj-mode .recurring-summary-item:hover {
   color: var(--text);
@@ -1547,10 +1660,9 @@ button:not(:disabled):not(.settings-backdrop):active,
 .daily-card .task-item.done,
 .weekly-card .task-item.done,
 .persistent-card .task-item.done,
-.app.rj-mode .persistent-card .task-item.done,
-.app.rj-mode .persistent-card .task-item.recurring-task.done {
-  color: var(--text);
-  opacity: 0.82;
+.app.rj-mode .persistent-card .task-item.done {
+  color: var(--muted);
+  opacity: 0.5;
 }
 
 .task-badge,
@@ -1559,7 +1671,7 @@ button:not(:disabled):not(.settings-backdrop):active,
 .confirm-delete-btn {
   color: var(--text);
   background: var(--accent-soft);
-  border-color: rgba(244, 239, 216, 0.56);
+  border-color: var(--border);
 }
 
 .reset-label,
@@ -1587,7 +1699,9 @@ button:not(:disabled):not(.settings-backdrop):active,
 
 .settings-backdrop,
 .app.rj-mode .settings-backdrop {
-  background: rgba(75, 95, 82, 0.72);
+  background: rgba(28, 42, 32, 0.42);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .task-list,
@@ -1609,21 +1723,42 @@ button:not(:disabled):not(.settings-backdrop):active,
 }
 
 .settings-trigger,
-.list-set-switcher,
 .list-set-switch,
 button,
 select,
-input,
+input {
+  border-radius: var(--radius-sm, 8px);
+}
+
+.list-set-switcher {
+  border-radius: 10px;
+  background: var(--accent-soft);
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--border);
+}
+
 .todo-card,
-.task-item,
+.daily-card,
+.weekly-card,
+.persistent-card,
+.app.rj-mode .persistent-card,
 .recurring-panel-content,
-.settings-dialog,
-.recurring-summary-item,
+.settings-dialog {
+  border-radius: var(--radius-md, 14px);
+  box-shadow: var(--card-shadow);
+}
+
+.task-item,
+.recurring-summary-item {
+  border-radius: 10px;
+}
+
 .task-badge,
 .recurring-summary-status,
-.day-chip span {
-  border-radius: 0;
-  box-shadow: none;
+.day-chip span,
+.status-pill {
+  border-radius: 9999px;
 }
 
 .settings-trigger {
@@ -1632,22 +1767,29 @@ input,
 
 .list-set-switch {
   border-width: 0;
-  border-left: 1px solid rgba(244, 239, 216, 0.5);
+  border-radius: 7px;
+  padding: 0.32rem 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+  transition: all 0.15s ease;
 }
 
-.list-set-switch:first-child {
-  border-left: 0;
+.list-set-switch:hover {
+  color: var(--text);
+  background: var(--control-hover);
 }
 
 .list-set-switch.active,
 .list-set-switch.active:hover {
-  background: var(--accent-soft);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .list-stack {
-  gap: 0;
+  gap: 0.85rem;
   margin-top: 0;
-  border: 1px solid var(--border);
+  border: 0;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-rows: repeat(2, minmax(0, 1fr));
 }
@@ -1657,17 +1799,52 @@ input,
 .weekly-card,
 .persistent-card,
 .app.rj-mode .persistent-card {
-  background: transparent;
-  border: 0;
-  padding: 1.25rem 1.2rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 1.15rem 1.25rem;
 }
 
 .persistent-card {
-  border-right: 1px solid var(--border);
+  border: 1px solid var(--border);
 }
 
 .daily-card {
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+}
+
+.weekly-card {
+  border: 1px solid var(--border);
+}
+
+.reset-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.daily-card .reset-label {
+  background: var(--pastel-daily-bg);
+  color: var(--pastel-daily-text);
+  border: 1px solid var(--pastel-daily-border);
+}
+
+.weekly-card .reset-label {
+  background: var(--pastel-weekly-bg);
+  color: var(--pastel-weekly-text);
+  border: 1px solid var(--pastel-weekly-border);
+}
+
+.persistent-card .reset-label,
+.irl-card .reset-label {
+  background: var(--pastel-todo-bg);
+  color: var(--pastel-todo-text);
+  border: 1px solid var(--pastel-todo-border);
 }
 
 .card-header {
@@ -1694,14 +1871,22 @@ input,
 }
 
 .add-task-form input,
-input,
+input:not([type="checkbox"]),
 select {
   min-height: 2.15rem;
-  padding: 0.25rem 0;
-  background: transparent;
-  border-width: 0 0 1px;
-  border-style: solid;
-  border-color: var(--border);
+  padding: 0.35rem 0.65rem;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm, 8px);
+  color: var(--text);
+  transition: all 0.15s ease;
+}
+
+input:not([type="checkbox"]):focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .add-task-submit-btn,
@@ -1709,7 +1894,10 @@ select {
 .settings-close-btn,
 .task-action-btn {
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--panel);
+  border-radius: var(--radius-sm, 8px);
+  color: var(--text);
+  transition: all 0.15s ease;
 }
 
 .add-task-submit-btn {
@@ -1720,7 +1908,7 @@ select {
 }
 
 .task-list {
-  gap: 0;
+  gap: 0.45rem;
   padding-right: 0.35rem;
 }
 
@@ -1728,65 +1916,75 @@ select {
 .daily-card .task-item,
 .weekly-card .task-item,
 .persistent-card .task-item,
-.app.rj-mode .persistent-card .task-item,
-.app.rj-mode .persistent-card .task-item.recurring-task {
-  background: transparent;
-  border-width: 0 0 1px;
-  border-style: solid;
-  border-color: rgba(244, 239, 216, 0.72);
+.app.rj-mode .persistent-card .task-item {
+  background: var(--task-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  margin-bottom: 0.4rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 0.15s ease;
 }
 
 .task-item:not(:last-child) {
-  margin-bottom: 0;
+  margin-bottom: 0.4rem;
 }
 
 .task-item:hover,
 .daily-card .task-item:hover,
 .weekly-card .task-item:hover,
 .persistent-card .task-item:hover,
-.app.rj-mode .persistent-card .task-item:hover,
-.app.rj-mode .persistent-card .task-item.recurring-task:hover {
-  background: var(--control-hover);
+.app.rj-mode .persistent-card .task-item:hover {
+  background: var(--task-hover);
   border-color: var(--border);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .task-item.done,
 .daily-card .task-item.done,
 .weekly-card .task-item.done,
 .persistent-card .task-item.done,
-.app.rj-mode .persistent-card .task-item.done,
-.app.rj-mode .persistent-card .task-item.recurring-task.done {
-  background: transparent;
-  border-color: rgba(244, 239, 216, 0.46);
+.app.rj-mode .persistent-card .task-item.done {
+  background: var(--task-bg);
+  border-color: var(--border);
+  opacity: 0.48;
 }
 
 .empty-msg {
   margin-top: 0.6rem;
+  color: var(--muted);
 }
 
 .confirm-delete-btn {
-  border-color: var(--border);
-  background: transparent;
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-radius: 8px;
 }
 
 .settings-dialog,
 .recurring-panel-content,
 .app.rj-mode .recurring-panel-content {
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--panel);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.2);
 }
 
 .recurring-summary-item,
 .app.rj-mode .recurring-summary-item {
-  background: transparent;
-  border-width: 0 0 1px;
-  border-color: rgba(244, 239, 216, 0.72);
+  background: var(--task-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0.35rem;
 }
 
 .recurring-summary-status,
 .task-badge {
-  background: transparent;
-  border: 1px solid rgba(244, 239, 216, 0.6);
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 9999px;
 }
 
 .app {
@@ -1847,10 +2045,14 @@ select {
   border: 1px solid currentColor;
 }
 
-/* Paired IRL spacing. */
+
+/* --------------------------------------------------------------------------
+   [SEC-06] IRL MODE DUAL-COLUMN LAYOUT & COMPOSER
+   -------------------------------------------------------------------------- */
+
 
 .app.rj-mode:not(.paired-rj) .persistent-card:not(.partner-rj-card) {
-  grid-column: 1 / -1;
+  grid-column: auto;
 }
 
 /* Paired planner layout. */
@@ -2186,7 +2388,7 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   padding: 0;
   color: var(--text);
   background: transparent;
-  border: 1px solid rgba(244, 239, 216, 0.6);
+  border: 1px solid var(--border);
   font-size: 0;
 }
 
@@ -2206,7 +2408,11 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   opacity: 1;
 }
 
-/* Quick roll-down recurring chooser */
+
+/* --------------------------------------------------------------------------
+   [SEC-07] RECURRING PANEL, SCHEDULE PANEL & DAY PICKERS
+   -------------------------------------------------------------------------- */
+
 
 .app.rj-mode .recurring-tools:not([hidden]) {
   position: relative;
@@ -2325,7 +2531,7 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 .app.rj-mode .recurring-form .recurring-days-field.show-days-disabled .day-chip span:hover,
 .app.rj-mode .recurring-form .recurring-days-field.show-days-disabled .day-chip span:active {
   background: transparent;
-  border-color: rgba(244, 239, 216, 0.42);
+  border-color: var(--border);
   box-shadow: none;
   transform: none;
 }
@@ -2431,13 +2637,87 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   max-height: none;
 }
 
-/* Single MS entry line */
+/* MS Horizon Cadence Tabs */
+
+.schedms-horizon-nav {
+  display: flex;
+  justify-content: center;
+  width: min(100%, 36rem);
+  margin: 0 auto 0.65rem;
+}
+
+.schedms-horizon-nav[hidden] {
+  display: none;
+}
+
+.schedms-horizon-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.35rem;
+  background: var(--control-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 14px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.schedms-horizon-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.85rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.schedms-horizon-tab:hover {
+  color: var(--text);
+  background: var(--control-hover);
+}
+
+.schedms-horizon-tab.active {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.schedms-horizon-tab[data-ms-cadence="daily"].active {
+  color: var(--pastel-daily-text, var(--text));
+  background: var(--pastel-daily-bg, var(--panel));
+  border-color: var(--pastel-daily-border, var(--border));
+}
+
+.schedms-horizon-tab[data-ms-cadence="weekly"].active {
+  color: var(--pastel-weekly-text, var(--text));
+  background: var(--pastel-weekly-bg, var(--panel));
+  border-color: var(--pastel-weekly-border, var(--border));
+}
+
+.schedms-horizon-tab[data-ms-cadence="persistent"].active {
+  color: var(--pastel-todo-text, var(--text));
+  background: var(--pastel-todo-bg, var(--panel));
+  border-color: var(--pastel-todo-border, var(--border));
+}
+
+.schedms-tab-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+/* Single MS entry line placed at the top */
 
 .schedms-quick-add {
   position: relative;
   z-index: 2;
-  width: min(54rem, 100%);
-  margin: 0 0 0.85rem;
+  width: min(36rem, 100%);
+  margin: 0 auto 1.15rem;
   color: var(--text);
 }
 
@@ -2491,12 +2771,13 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   width: 100%;
   min-width: 0;
   min-height: 2.35rem;
-  padding: 0.28rem 0.15rem;
+  padding: 0.35rem 0.65rem;
   color: var(--text);
-  background-color: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--border);
+  background-color: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm, 8px);
   font: inherit;
+  transition: all 0.15s ease;
 }
 
 .schedms-add-form select {
@@ -2504,16 +2785,33 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 }
 
 .schedms-add-form input:hover,
-.schedms-add-form input:focus,
-.schedms-add-form select:hover,
-.schedms-add-form select:focus {
+.schedms-add-form select:hover {
   background-color: var(--control-hover);
+  border-color: var(--border);
+}
+
+.schedms-add-form input:focus,
+.schedms-add-form select:focus {
+  outline: none;
+  background-color: var(--control-bg);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .schedms-add-form .add-task-submit-btn {
   width: 2.45rem;
   min-height: 2.45rem;
   margin: 0;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 700;
+  transition: all 0.15s ease;
+}
+
+.schedms-add-form .add-task-submit-btn:hover {
+  background: var(--control-hover);
 }
 
 .schedms-quick-add .form-msg {
@@ -2528,16 +2826,19 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 .weekly-card .task-item,
 .persistent-card .task-item,
 .app.rj-mode .persistent-card .task-item,
-.app.rj-mode .persistent-card .task-item.recurring-task {
-  align-items: center;
-  box-sizing: border-box;
-  min-height: 2.55rem;
-  padding: 0.26rem 0.34rem 0.26rem 0;
-  overflow: hidden;
+.app.rj-mode .irl-card .task-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-sizing: border-box !important;
+  min-height: 2.55rem !important;
+  padding: 0.52rem 0.65rem 0.52rem 0.85rem !important;
+  gap: 0.5rem !important;
+  border-radius: var(--radius-sm, 8px) !important;
+  overflow: hidden !important;
 }
 
-.task-main,
-.app.rj-mode .persistent-card .task-item.recurring-task .task-main {
+.task-main {
   align-items: center;
   min-height: 2rem;
   padding-top: 0;
@@ -2647,7 +2948,11 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   }
 }
 
-/* Unified dropdown surface and quick open/close motion */
+
+/* --------------------------------------------------------------------------
+   [SEC-08] DROPDOWNS, CUSTOM SELECTS & ANIMATIONS
+   -------------------------------------------------------------------------- */
+
 
 select,
 .schedms-add-form select,
@@ -2701,9 +3006,9 @@ select,
   min-height: 2.35rem;
   padding: 0.32rem 2.65rem 0.32rem 0.65rem;
   color: var(--text);
-  background-color: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 0;
+  background-color: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm, 8px);
   text-align: left;
 }
 
@@ -2757,7 +3062,11 @@ button.custom-select-button:not(:disabled):active {
 select option,
 .custom-select-menu {
   color: var(--text);
-  background: var(--bg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .schedms-add-form .custom-select {
@@ -2815,6 +3124,10 @@ select option,
   display: none;
 }
 
+
+/* --------------------------------------------------------------------------
+   [SEC-03] APPLICATION HEADER, AUTH & SESSION CONTROLS
+   -------------------------------------------------------------------------- */
 .auth-view {
   position: relative;
   z-index: 1;
@@ -3114,18 +3427,12 @@ select option,
 }
 
 .task-item.priority {
-  border-color: #c5a45b;
-  background-image: linear-gradient(90deg, rgba(235, 196, 82, 0.2), transparent 46%);
-  box-shadow: inset 3px 0 0 rgba(180, 132, 32, 0.82), 0 0 0 1px rgba(180, 132, 32, 0.1);
+  background-image: none;
+  box-shadow: none;
 }
 
 .task-item.priority:hover {
-  border-color: #ad8226;
-  box-shadow: inset 3px 0 0 rgba(160, 111, 20, 0.9), 0 0 0 1px rgba(160, 111, 20, 0.15);
-}
-
-.task-item.priority.done {
-  border-color: #bca870;
+  box-shadow: none;
 }
 
 @media (max-width: 700px) {
@@ -3209,7 +3516,11 @@ select option,
   }
 }
 
-/* Keep these refinements after the theme's layered overrides. */
+
+/* --------------------------------------------------------------------------
+   [SEC-09] REFINED LAYOUT OVERRIDES, POPUPS & SCROLLING
+   -------------------------------------------------------------------------- */
+
 
 .app:not(.rj-mode) .todo-card > .form-msg:empty {
   min-height: 0;
@@ -3583,20 +3894,19 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   top: 100%;
 }
 
-/* MS owner labels live inside each To-Do header. */
+/* MS owner labels live above each list stack when paired. */
 
 .ms-owner-label {
   display: inline-flex;
   align-items: center;
   min-height: 1.95rem;
-  padding: 0.28rem 0.75rem;
+  padding: 0.25rem 0.2rem;
   color: var(--text);
-  background: var(--control-hover);
-  border: 1px solid var(--border);
-  font-size: 0.95rem;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: 0.02em;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.025em;
 }
 
 .ms-owner-label[hidden] {
@@ -3608,25 +3918,34 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   border-top: 0;
 }
 
-/* MS owner strip sits in a compact footer inside each outer frame. */
+/* MS owner titles sit above each outer frame when paired. */
 
 .app:not(.rj-mode) .list-stack {
   position: relative;
   padding-top: 0;
-  padding-bottom: 2.65rem;
+  padding-bottom: 0;
   box-sizing: border-box;
 }
 
-.app:not(.rj-mode) .list-stack > .ms-owner-label {
-  position: absolute;
-  top: auto;
-  bottom: 0.48rem;
-  left: 0.7rem;
-  z-index: 5;
+.app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) > .list-stack,
+.app:not(.rj-mode) .partner-ms-list-stack {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.app:not(.rj-mode) .list-stack > .ms-owner-label,
+.app:not(.rj-mode) .partner-ms-section > .ms-owner-label,
+.app:not(.rj-mode) .partner-ms-list-stack > .ms-owner-label {
+  position: static;
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 0.5rem 0.2rem;
 }
 
 .app:not(.rj-mode) .partner-ms-section {
-  margin-top: 2.5rem;
+  margin-top: 0;
 }
 
 /* Explicit shared hover state keeps the paired popup open under the pointer. */
@@ -3786,28 +4105,26 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 
 @media (hover: none), (pointer: coarse) {
   .task-actions {
-    opacity: 1;
+    opacity: 0.7;
+    transform: none;
     pointer-events: auto;
   }
 
   .task-actions-toggle {
-    display: inline-grid;
-    font-size: 1.15rem;
-    line-height: 1;
+    display: none;
   }
 
   .task-actions > .edit-btn,
   .task-actions > .delete-btn {
-    display: none;
-  }
-
-  .task-item.actions-open .task-actions > .edit-btn,
-  .task-item.actions-open .task-actions > .delete-btn {
-    display: inline-grid;
+    display: inline-flex !important;
   }
 }
 
-/* Compact controls and a two-row by three-owner IRL grid. */
+
+/* --------------------------------------------------------------------------
+   [SEC-10] COMPACT CONTROLS, IRL TARGET GRID & OWNER TOGGLE
+   -------------------------------------------------------------------------- */
+
 
 .app {
   gap: 0.45rem;
@@ -3866,32 +4183,39 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 }
 
 .app.rj-mode #lists-view {
-  width: min(100%, 72rem);
+  width: 100%;
+  max-width: 86rem;
+  margin: 0 auto;
 }
 
 .app.rj-mode .list-stack {
   display: grid;
-  height: min(44rem, calc(100dvh - 8.5rem));
-  min-height: 26rem;
+  height: min(48rem, calc(100dvh - 8.5rem));
+  min-height: 24rem;
+  gap: 1.15rem;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.app.rj-mode.paired-rj .list-stack {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: auto repeat(2, minmax(0, 1fr));
-  grid-template-areas:
-    "mine-heading shared-heading partner-heading"
-    "mine-todo shared-todo partner-todo"
-    "mine-schedule shared-schedule partner-schedule";
-  gap: 0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: none;
+  max-width: 84rem;
 }
 
 .app.rj-mode:not(.paired-rj) .list-stack {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto repeat(2, minmax(0, 1fr));
-  grid-template-areas:
-    "mine-heading"
-    "mine-todo"
-    "mine-schedule";
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: none;
+  max-width: 58rem;
+}
+
+.app.rj-mode .rj-column-header {
+  display: none !important;
 }
 
 .app.rj-mode .irl-card {
@@ -3899,90 +4223,354 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   max-width: none;
   min-height: 0;
   justify-self: stretch;
-  padding: 0.46rem 0.85rem 0.72rem;
-  border: 0;
-  border-top: 0;
-  border-radius: 0;
-  box-shadow: none;
+  padding: 0.85rem 1rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
 }
 
 .app.rj-mode .irl-left-card {
-  border-right: 0;
-}
-
-.app.rj-mode .mine-todo-card {
-  grid-area: mine-todo;
-}
-
-.app.rj-mode .mine-schedule-card {
-  grid-area: mine-schedule;
-}
-
-.app.rj-mode .shared-todo-card {
-  grid-area: shared-todo;
-}
-
-.app.rj-mode .shared-schedule-card {
-  grid-area: shared-schedule;
-}
-
-.app.rj-mode .partner-todo-card {
-  grid-area: partner-todo;
-}
-
-.app.rj-mode .partner-schedule-card {
-  grid-area: partner-schedule;
-}
-
-.app.rj-mode .mine-todo-card,
-.app.rj-mode .shared-todo-card,
-.app.rj-mode .mine-schedule-card,
-.app.rj-mode .shared-schedule-card {
   border-right: 1px solid var(--border);
 }
 
 .app.rj-mode .mine-todo-card,
+.app.rj-mode .mine-schedule-card,
 .app.rj-mode .shared-todo-card,
-.app.rj-mode .partner-todo-card {
-  border-bottom: 1px solid rgba(244, 239, 216, 0.16);
+.app.rj-mode .shared-schedule-card,
+.app.rj-mode .partner-todo-card,
+.app.rj-mode .partner-schedule-card {
+  grid-area: auto;
+  border: 1px solid var(--border);
 }
 
 .app.rj-mode .irl-card .card-header {
   flex: 0 0 auto;
-  min-height: 1rem;
-  margin: 0 0 0.06rem;
+  min-height: 1.75rem;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .app.rj-mode .irl-card .card-header h2 {
-  font-size: 0;
-  letter-spacing: 0.025em;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 0;
 }
 
 .app.rj-mode .irl-card .card-header h2::before {
-  display: inline-grid;
-  place-items: center;
-  width: 1rem;
-  height: 1rem;
-  margin-right: 0;
-  border: 0;
-  border-radius: 0;
-  font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
-  font-size: 0.8rem;
-  font-weight: 300;
-  line-height: 1;
-  transform: none;
+  content: none;
+  display: none;
 }
 
-.app.rj-mode .mine-todo-card .card-header h2::before,
-.app.rj-mode .shared-todo-card .card-header h2::before,
-.app.rj-mode .partner-todo-card .card-header h2::before {
-  content: "\2713";
+.app.rj-mode .task-item[data-owner="mine"] {
+  border-left: 3.5px solid var(--user-color, #3d7a5a) !important;
 }
 
-.app.rj-mode .mine-schedule-card .card-header h2::before,
-.app.rj-mode .shared-schedule-card .card-header h2::before,
-.app.rj-mode .partner-schedule-card .card-header h2::before {
-  content: "\25f7";
+.app.rj-mode .task-item[data-owner="partner"],
+.app.rj-mode .task-item.partner-task-item {
+  border-left: 3.5px solid var(--partner-color, #b35d67) !important;
+}
+
+.app.rj-mode .task-item[data-owner="shared"] {
+  border-left: 3.5px solid var(--shared-color, #786b60) !important;
+}
+
+.app.rj-mode .task-item.done[data-owner],
+.app.rj-mode .task-item.done.partner-task-item {
+  border-left-color: var(--border) !important;
+}
+
+/* Recurring tasks maintain the same clean background as standard tasks */
+.app.rj-mode .task-item.recurring-task {
+  background: var(--task-bg);
+}
+
+.app.rj-mode .task-item.recurring-task:hover {
+  background: var(--task-hover);
+}
+
+/* Hidden task checkboxes */
+.app.rj-mode .task-item input[type="checkbox"],
+.app.rj-mode .mine-todo-card input[type="checkbox"],
+.app.rj-mode .partner-todo-card input[type="checkbox"],
+.app.rj-mode .shared-todo-card input[type="checkbox"] {
+  display: none !important;
+}
+
+/* Recurring badges styled with owner color and positioned at the end */
+.app.rj-mode .task-item .task-badge,
+.task-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.2rem !important;
+  padding: 0.12rem 0.45rem !important;
+  border-radius: 9999px !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  font-family: inherit !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
+
+.task-item:has(.task-actions) .task-badge {
+  margin-left: 0.25rem !important;
+}
+
+.app.rj-mode .task-item[data-owner="mine"] .task-badge {
+  color: var(--user-color, #3d7a5a) !important;
+  background: color-mix(in srgb, var(--user-color, #3d7a5a) 14%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--user-color, #3d7a5a) 32%, transparent) !important;
+}
+
+.app.rj-mode .task-item[data-owner="partner"] .task-badge {
+  color: var(--partner-color, #b35d67) !important;
+  background: color-mix(in srgb, var(--partner-color, #b35d67) 14%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--partner-color, #b35d67) 32%, transparent) !important;
+}
+
+.app.rj-mode .task-item[data-owner="shared"] .task-badge {
+  color: var(--shared-color, #786b60) !important;
+  background: color-mix(in srgb, var(--shared-color, #786b60) 16%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--shared-color, #786b60) 35%, transparent) !important;
+}
+
+/* Minimal yet intuitive task actions */
+.task-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.15rem !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.task-action-btn {
+  display: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 1.65rem !important;
+  height: 1.65rem !important;
+  min-width: 1.65rem !important;
+  min-height: 1.65rem !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.1s ease !important;
+}
+
+.task-action-btn.favorite-btn.active,
+.task-action-btn.favorite-btn.is-favorite {
+  display: inline-flex !important;
+  color: var(--gold, #d97706) !important;
+}
+
+.task-item:hover .task-action-btn,
+.task-item:focus-within .task-action-btn,
+.task-item.actions-open .task-action-btn,
+.task-item.actions-visible .task-action-btn {
+  display: inline-flex !important;
+}
+
+.task-action-btn:hover {
+  background: var(--control-hover) !important;
+  color: var(--text) !important;
+  transform: scale(1.08) !important;
+}
+
+.task-action-btn.delete-btn:hover {
+  background: var(--danger-bg) !important;
+  color: var(--danger-text) !important;
+}
+
+.task-action-btn.favorite-btn:hover {
+  background: var(--gold-hover, #fef3c7) !important;
+  color: var(--gold, #d97706) !important;
+}
+
+.task-favorite-indicator {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  color: var(--gold, #d97706) !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+  pointer-events: none !important;
+}
+
+.task-item:has(.task-favorite-indicator) .task-badge {
+  margin-left: 0.25rem !important;
+}
+
+.action-icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+  display: block;
+  pointer-events: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .task-action-btn {
+    opacity: 0.65 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    width: 2rem !important;
+    height: 2rem !important;
+    min-width: 2rem !important;
+    min-height: 2rem !important;
+  }
+
+  .task-action-btn.favorite-btn.active,
+  .task-action-btn.favorite-btn.is-favorite {
+    opacity: 1 !important;
+  }
+}
+
+/* Recurring form controls active color */
+.app.rj-mode .day-chip input:checked + span {
+  background: var(--user-color, #3d7a5a) !important;
+  color: #ffffff !important;
+  border-color: var(--user-color, #3d7a5a) !important;
+}
+
+.app.rj-mode .recurring-toggle-btn[aria-expanded="true"],
+.app.rj-mode .recurring-toggle-btn.active {
+  color: var(--user-color, #3d7a5a) !important;
+  background: color-mix(in srgb, var(--user-color, #3d7a5a) 15%, transparent) !important;
+  border-color: var(--user-color, #3d7a5a) !important;
+}
+
+/* Recurring drawer panels owner colors */
+.recurring-panel[data-rj-schedule-owner="mine"] .recurring-kind-label,
+.recurring-panel[data-rj-schedule-owner="mine"] .recurring-summary-status.active {
+  color: var(--user-color, #3d7a5a);
+  background: color-mix(in srgb, var(--user-color, #3d7a5a) 15%, transparent);
+  border-color: color-mix(in srgb, var(--user-color, #3d7a5a) 30%, transparent);
+}
+
+.recurring-panel[data-rj-schedule-owner="partner"] .recurring-kind-label,
+.recurring-panel[data-rj-schedule-owner="partner"] .recurring-summary-status.active {
+  color: var(--partner-color, #b35d67);
+  background: color-mix(in srgb, var(--partner-color, #b35d67) 15%, transparent);
+  border-color: color-mix(in srgb, var(--partner-color, #b35d67) 30%, transparent);
+}
+
+.recurring-panel[data-rj-schedule-owner="shared"] .recurring-kind-label,
+.recurring-panel[data-rj-schedule-owner="shared"] .recurring-summary-status.active {
+  color: var(--shared-color, #786b60);
+  background: color-mix(in srgb, var(--shared-color, #786b60) 15%, transparent);
+  border-color: color-mix(in srgb, var(--shared-color, #786b60) 30%, transparent);
+}
+
+.task-main,
+.app.rj-mode .task-main {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 0.5rem !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+}
+
+.task-copy,
+.app.rj-mode .task-copy {
+  display: inline !important;
+  font-size: 0.92rem !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  color: var(--text) !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.app.rj-mode .task-owner-badge,
+.app.rj-mode .task-date-chip,
+.app.rj-mode .task-badge {
+  flex-shrink: 0;
+  margin-left: 0.2rem;
+}
+
+.task-owner-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+  line-height: 1.2;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  margin-left: 0.25rem;
+}
+
+.task-owner-badge.owner-mine {
+  color: var(--user-color, #3d7a5a);
+  background: color-mix(in srgb, var(--user-color, #3d7a5a) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--user-color, #3d7a5a) 25%, transparent);
+}
+
+.task-owner-badge.owner-partner {
+  color: var(--partner-color, #b35d67);
+  background: color-mix(in srgb, var(--partner-color, #b35d67) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--partner-color, #b35d67) 25%, transparent);
+}
+
+.task-owner-badge.owner-shared {
+  color: var(--shared-color, #786b60);
+  background: color-mix(in srgb, var(--shared-color, #786b60) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--shared-color, #786b60) 28%, transparent);
+}
+
+.task-date-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+  background: var(--control-hover);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  line-height: 1.2;
+  white-space: nowrap;
+  margin-left: 0.25rem;
+}
+
+.task-date-chip.is-today {
+  color: var(--text);
+  font-weight: 600;
+  background: var(--accent-soft);
+  border-color: var(--border);
+}
+
+.task-date-chip.is-past {
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
 }
 
 .app.rj-mode .irl-card .task-list {
@@ -4008,20 +4596,112 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 
 .app.rj-mode .rj-composer-form,
 .app.rj-mode .rj-composer-form.editing-task {
-  display: grid;
-  grid-template-columns: minmax(12rem, 1fr) auto auto auto;
-  grid-template-rows: auto;
+  display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.35rem;
   width: 100%;
   margin: 0;
 }
 
-.app.rj-mode .rj-composer-form > input {
-  grid-column: 1;
-  width: 100%;
+.app.rj-mode .rj-composer-form > input[type="text"] {
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 2rem;
+}
+
+.rj-schedule-date-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.rj-schedule-date-wrap[hidden] {
+  display: none !important;
+}
+
+.rj-schedule-date {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--control-bg);
+  color: var(--text);
+  height: 1.9rem;
+}
+
+.rj-schedule-date:focus {
+  outline: 2px solid var(--accent);
+}
+
+.color-picker-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  margin-top: 0.35rem !important;
+  width: 100% !important;
+}
+
+.user-color-picker {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  display: inline-block !important;
+  width: 2.3rem !important;
+  height: 2.3rem !important;
+  min-width: 2.3rem !important;
+  min-height: 2.3rem !important;
+  max-width: 2.3rem !important;
+  max-height: 2.3rem !important;
+  border-radius: 50% !important;
+  border: 2px solid var(--border) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+  background: transparent !important;
+  flex: 0 0 2.3rem !important;
+  overflow: hidden !important;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.user-color-picker:hover {
+  transform: scale(1.08) !important;
+  border-color: var(--text) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+}
+
+.user-color-picker:focus-visible {
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 2px !important;
+}
+
+.user-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0 !important;
+  border-radius: 50% !important;
+}
+
+.user-color-picker::-webkit-color-swatch {
+  border: 0 !important;
+  border-radius: 50% !important;
+}
+
+.user-color-picker::-moz-color-swatch {
+  border: 0 !important;
+  border-radius: 50% !important;
+}
+
+.user-color-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 0.88rem !important;
+  font-weight: 600 !important;
+  color: var(--text) !important;
+  background: var(--control-hover) !important;
+  padding: 0.25rem 0.65rem !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--border) !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
 }
 
 .rj-target-grid {
@@ -4074,14 +4754,20 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   min-height: 1.9rem;
   padding: 0;
   overflow: hidden;
-  background: linear-gradient(to right, var(--bg) 0 50%, var(--shared-surface) 50% 100%);
-  border: 1px solid var(--border);
+  background: var(--accent-soft);
+  border: 1px solid var(--control-border);
   border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.rj-owner-toggle.shared {
+  background: var(--shared-surface);
+  border-color: var(--shared-border, var(--border));
 }
 
 .app.rj-mode .rj-owner-toggle:hover,
 .app.rj-mode .rj-owner-toggle:active {
-  background: linear-gradient(to right, var(--bg) 0 50%, var(--shared-surface) 50% 100%);
   border-color: var(--border);
   box-shadow: none;
   transform: none;
@@ -4089,59 +4775,89 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 
 .rj-owner-toggle:disabled {
   opacity: 0.42;
+  cursor: default;
 }
 
 .rj-owner-thumb {
   position: absolute;
-  top: 0.16rem;
-  left: 0.16rem;
+  top: 50%;
+  left: 0.19rem;
   z-index: 1;
-  width: 1.46rem;
-  height: 1.46rem;
-  background: var(--text);
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--panel);
   border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(38, 49, 38, 0.24);
-  transform: translateX(0);
+  box-shadow: 0 1px 3px rgba(35, 52, 38, 0.18), 0 1px 2px rgba(35, 52, 38, 0.1);
+  transform: translateY(-50%);
   transition: transform 190ms cubic-bezier(0.22, 0.75, 0.28, 1);
 }
 
+body.theme-dark .rj-owner-thumb,
+:root[data-theme="dark"] .rj-owner-thumb {
+  background: #2d3b32;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
 .rj-owner-toggle.shared .rj-owner-thumb {
-  transform: translateX(1.47rem);
+  transform: translate(1.37rem, -50%);
 }
 
 .rj-owner-choice {
   position: absolute;
   top: 50%;
   z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 1.46rem;
-  height: 1.46rem;
-  color: rgba(244, 239, 216, 0.68);
-  font-family: Arial, sans-serif;
-  font-size: 1.05rem;
-  font-weight: 300;
-  letter-spacing: 0;
-  line-height: 1;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--muted);
   pointer-events: none;
+  font-size: 0;
   transform: translateY(-50%);
   transition: color 150ms ease;
 }
 
 .rj-owner-choice-mine {
-  left: 0.16rem;
+  left: 0.19rem;
 }
 
 .rj-owner-choice-shared {
-  right: 0.16rem;
-  padding-left: 0.1rem;
-  font-size: 0.78rem;
-  letter-spacing: 0.1rem;
+  left: 1.56rem;
 }
 
-.rj-owner-toggle:not(.shared) .rj-owner-choice-mine,
+.rj-owner-choice-mine::before,
+.rj-owner-choice-shared::before {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: currentColor;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.rj-owner-choice-mine::before {
+  -webkit-mask-image: url("assets/owner-mine.png");
+  mask-image: url("assets/owner-mine.png");
+  -webkit-mask-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAVUlEQVR4nO3UQQqAMAwEwP1Zn9an+FQloBcRTx4amYGFkl4a2jQBAAAAvjaSzDO1bmVLst9StRbGw+GvtLiJ+dJA7S2vfQPtn1D7If7FNwoAAABZ3AExlShNmHpnvgAAAABJRU5ErkJggg==");
+  mask-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAVUlEQVR4nO3UQQqAMAwEwP1Zn9an+FQloBcRTx4amYGFkl4a2jQBAAAAvjaSzDO1bmVLst9StRbGw+GvtLiJ+dJA7S2vfQPtn1D7If7FNwoAAABZ3AExlShNmHpnvgAAAABJRU5ErkJggg==");
+}
+
+.rj-owner-choice-shared::before {
+  -webkit-mask-image: url("assets/owner-shared.png");
+  mask-image: url("assets/owner-shared.png");
+  -webkit-mask-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAaElEQVR4nO3TwQnAIAxG4beBozhSR+lIHcGROoJF8OAhvWql74Oc/AMJRJAkSZIkSb92AjdQgQtIQSb1t9qzrecTjj7UWCXIlSDXepeLBmuVh0x+yUSLTrf9Atuf0PafWJIkSZIkMd8DTHo4uS8EV5oAAAAASUVORK5CYII=");
+  mask-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAaElEQVR4nO3TwQnAIAxG4beBozhSR+lIHcGROoJF8OAhvWql74Oc/AMJRJAkSZIkSb92AjdQgQtIQSb1t9qzrecTjj7UWCXIlSDXepeLBmuVh0x+yUSLTrf9Atuf0PafWJIkSZIkMd8DTHo4uS8EV5oAAAAASUVORK5CYII=");
+}
+
+.rj-owner-toggle:not(.shared) .rj-owner-choice-mine {
+  color: var(--text);
+}
+
 .rj-owner-toggle.shared .rj-owner-choice-shared {
-  color: #374836;
+  color: var(--pastel-emerald-text, var(--text));
 }
 
 .app.rj-mode .rj-composer-form > .recurring-toggle-btn {
@@ -4227,23 +4943,6 @@ body:not(.rj-mode) .app:not(.rj-mode) {
     pointer-events: auto;
   }
 
-  .app.rj-mode .irl-card .task-actions-toggle {
-    display: inline-grid;
-    width: 1.55rem;
-    height: 1.55rem;
-    min-height: 1.55rem;
-    font-size: 0.92rem;
-  }
-
-  .app.rj-mode .irl-card .task-actions > .edit-btn,
-  .app.rj-mode .irl-card .task-actions > .delete-btn {
-    display: none;
-  }
-
-  .app.rj-mode .irl-card .task-item.actions-open .task-actions > .edit-btn,
-  .app.rj-mode .irl-card .task-item.actions-open .task-actions > .delete-btn {
-    display: inline-grid;
-  }
 
   .app.rj-mode .irl-card .task-copy {
     overflow-wrap: normal;
@@ -4307,7 +5006,11 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   }
 }
 
-/* Recurring overviews and shared surfaces. */
+
+/* --------------------------------------------------------------------------
+   [SEC-11] SHARED SURFACES & RECURRING OVERVIEWS
+   -------------------------------------------------------------------------- */
+
 
 .app.rj-mode .rj-column-header {
   position: relative;
@@ -4319,7 +5022,7 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   min-height: 2.15rem;
   padding: 0.34rem 0.72rem;
   background: var(--bg);
-  border-bottom: 1px solid rgba(244, 239, 216, 0.16);
+  border-bottom: 1px solid var(--border);
 }
 
 .app.rj-mode #mine-rj-column-header {
@@ -4354,18 +5057,25 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 .app.rj-mode .shared-todo-card,
 .app.rj-mode .shared-schedule-card {
   background: var(--shared-surface);
+  border-color: var(--shared-border, var(--border));
+}
+
+.app.rj-mode .shared-todo-card,
+.app.rj-mode .shared-schedule-card {
+  box-shadow: 0 1px 4px 0 rgba(35, 52, 38, 0.08);
 }
 
 .app.rj-mode .shared-todo-card .task-item,
 .app.rj-mode .shared-schedule-card .task-item,
 .app.rj-mode .shared-todo-card .task-item.done,
 .app.rj-mode .shared-schedule-card .task-item.done {
-  background: transparent;
+  background: var(--shared-task-bg, rgba(255, 255, 255, 0.62));
+  border-color: var(--shared-border, var(--border));
 }
 
 .app.rj-mode .shared-todo-card .task-item:hover,
 .app.rj-mode .shared-schedule-card .task-item:hover {
-  background: var(--shared-surface-hover);
+  background: var(--shared-task-hover, rgba(255, 255, 255, 0.9));
 }
 
 .app.rj-mode .rj-schedule-panel:not([hidden]) {
@@ -4389,14 +5099,14 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   padding: 0;
   color: var(--text);
   background: transparent;
-  border: 1px solid rgba(244, 239, 216, 0.72);
+  border: 1px solid var(--border);
   border-radius: 50%;
   box-shadow: none;
 }
 
 .app.rj-mode .rj-schedule-panel .recurring-panel-toggle:hover,
 .app.rj-mode .rj-schedule-panel.open .recurring-panel-toggle {
-  background: rgba(244, 239, 216, 0.1);
+  background: var(--control-hover);
   border-color: var(--border);
 }
 
@@ -4490,54 +5200,102 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   opacity: 0.9;
 }
 
-/* Match each recurring item marker to the compact column recurring control. */
-
-.app.rj-mode .irl-card .task-item.recurring-task .task-badge {
-  display: inline-grid;
-  place-items: center;
-  width: 0.78rem;
-  min-width: 0.78rem;
-  height: 0.78rem;
-  min-height: 0.78rem;
-  margin: 0;
-  padding: 0;
-  overflow: visible;
-  color: var(--text);
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
-  font-size: 0.72rem;
-  font-weight: 300;
-  line-height: 1;
-  transform: none;
-}
-
+/* Recurring item badge inherits owner accent styling */
 .app.rj-mode .irl-card .task-item.recurring-task .task-badge::before {
   content: none;
 }
 
-/* Responsive refinements: retain the MS split above mobile/tablet widths. */
-@media (min-width: 901px) {
-  .app:not(.rj-mode) .list-stack,
-  .app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) > .list-stack,
-  .app:not(.rj-mode) .partner-ms-list-stack {
+
+/* --------------------------------------------------------------------------
+   [SEC-12] RESPONSIVE BREAKPOINTS (MOBILE & TABLET)
+   -------------------------------------------------------------------------- */
+
+@media (min-width: 761px) {
+  .app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(2, minmax(0, 1fr));
-    grid-template-areas: "persistent daily" "persistent weekly";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+    width: 100%;
+    max-width: 74rem;
+    margin: 0 auto;
   }
 
-  .app:not(.rj-mode) .persistent-card { border-right: 1px solid var(--border); }
-  .app:not(.rj-mode) .weekly-card { border-bottom: 0; }
+  .app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) > .schedms-horizon-nav {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+
+  .app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) > .schedms-quick-add {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+
+  .app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) > .list-stack {
+    grid-column: 1;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+  }
+
+  .app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) > .partner-ms-section {
+    grid-column: 2;
+    width: 100%;
+    margin-top: 0;
+  }
+}
+
+.app:not(.rj-mode) #lists-view:not(:has(.partner-ms-section:not([hidden]))) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.app:not(.rj-mode) #lists-view:not(:has(.partner-ms-section:not([hidden]))) > .list-stack {
+  width: min(100%, 42rem);
+  margin: 0 auto;
+}
+
+.app:not(.rj-mode) .list-stack:not(.show-all-cadences),
+.app:not(.rj-mode) .partner-ms-list-stack:not(.show-all-cadences) {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 20rem;
+  padding: 0;
+  border: 0;
+}
+
+.app:not(.rj-mode) .list-stack:not(.show-all-cadences) > .todo-card:not([hidden]),
+.app:not(.rj-mode) .partner-ms-list-stack:not(.show-all-cadences) > .todo-card:not([hidden]) {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 22rem;
+  border: 1px solid var(--border);
+}
+
+.app:not(.rj-mode) .list-stack.show-all-cadences,
+.app:not(.rj-mode) .partner-ms-list-stack.show-all-cadences {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}
+
+.app:not(.rj-mode) .list-stack.show-all-cadences > .todo-card,
+.app:not(.rj-mode) .partner-ms-list-stack.show-all-cadences > .todo-card {
+  border: 1px solid var(--border);
 }
 
 .form-msg:empty { display: none; }
 .list-stack::before, .list-stack::after,
 .app.rj-mode #lists-view::before, .app.rj-mode #lists-view::after { content: none; }
-.ms-owner-label { background: transparent; border: 0; font-weight: 600; }
-.app:not(.rj-mode) .partner-ms-section { margin-top: 1.25rem; }
+.ms-owner-label { background: transparent; border: 0; font-weight: 700; }
+.app:not(.rj-mode) .partner-ms-section { margin-top: 0; }
 .app.rj-mode .rj-composer,
 .app.rj-mode.paired-rj .rj-composer,
 .app:not(.rj-mode) .schedms-quick-add { width: min(100%, 36rem); }
@@ -4608,24 +5366,15 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   .app:not(.rj-mode) .todo-card { min-height: 0; overflow: visible; padding: 0.85rem; }
   .app:not(.rj-mode) .persistent-card { border-right: 0; }
   .task-actions { opacity: 1; pointer-events: auto; }
-  .task-actions-toggle, .app.rj-mode .irl-card .task-actions-toggle { display: inline-grid; width: 2.5rem; height: 2.75rem; min-height: 2.75rem; }
-  .task-actions > .edit-btn, .task-actions > .delete-btn { display: none; }
-  .task-item.actions-open .task-actions > .edit-btn, .task-item.actions-open .task-actions > .delete-btn { display: inline-grid; }
   .task-item { flex-wrap: wrap; }
   .task-main { flex: 1; }
 
   /* Full-width lists follow the page flow, with no nested list scrolling. */
   .app.rj-mode .list-stack,
-  .app.rj-mode:not(.paired-rj) .list-stack { display: flex; flex-direction: column; border: 0; gap: 0; }
-  .app.rj-mode #mine-rj-column-header { order: 0; }
+  .app.rj-mode:not(.paired-rj) .list-stack { display: flex; flex-direction: column; border: 0; gap: 1rem; }
   .app.rj-mode .mine-todo-card { order: 1; }
   .app.rj-mode .mine-schedule-card { order: 2; }
-  .app.rj-mode #shared-rj-column-header { order: 3; }
-  .app.rj-mode .shared-todo-card { order: 4; }
-  .app.rj-mode .shared-schedule-card { order: 5; }
-  .app.rj-mode #partner-rj-column-header { order: 6; }
-  .app.rj-mode .partner-todo-card { order: 7; }
-  .app.rj-mode .partner-schedule-card { order: 8; }
+  .app.rj-mode .partner-todo-card { order: 3; }
   .app.rj-mode .list-stack > .todo-card,
   .app:not(.rj-mode) .list-stack > .todo-card {
     flex: none; width: 100%; height: auto; max-height: none;
@@ -4681,9 +5430,10 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   display: inline-grid; place-items: center; flex: 0 0 2rem;
   width: 2rem; height: 2rem; padding: 0; border: 0;
   background: transparent; font-size: 1.4rem; font-weight: 800;
+  color: var(--text);
 }
-.status-pill.all-saved { color: #8affaa; }
-.status-pill.not-saved { color: #ffaaa5; }
+.status-pill.all-saved { color: var(--text); }
+.status-pill.not-saved { color: var(--text); }
 
 @media (max-width: 900px) {
   .app-header { flex-wrap: nowrap; align-items: center; }
@@ -4705,14 +5455,7 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   .recurring-toggle-btn .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .rj-owner-toggle { grid-column: 3; grid-row: 2; justify-self: end; }
   .task-item { touch-action: pan-y pinch-zoom; }
-  .task-item .task-actions,
-  .app.rj-mode .irl-card .task-item .task-actions { display: flex; }
-  .task-item .task-actions > .edit-btn,
-  .task-item .task-actions > .task-actions-toggle,
-  .app.rj-mode .irl-card .task-item .task-actions > .edit-btn,
-  .app.rj-mode .irl-card .task-item .task-actions > .task-actions-toggle { display: none !important; }
-  .task-item .task-actions > .delete-btn,
-  .app.rj-mode .irl-card .task-item .task-actions > .delete-btn { display: inline-grid; min-width: 2.75rem; min-height: 2.75rem; }
+
 }
 
 /* The hidden attribute always wins over mode and responsive layout rules. */
