@@ -2913,35 +2913,56 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 }
 
 @media (max-width: 760px) {
-  .schedms-add-form {
-    grid-template-columns: minmax(0, 1fr) 2.45rem;
-  }
-
+  .schedms-add-form,
   .schedms-add-form.editing-task {
     width: 100%;
-    grid-template-columns: minmax(0, 1fr) 2.45rem;
+    grid-template-columns: minmax(0, 1fr) auto 2.45rem;
+    grid-template-rows: auto;
+    gap: 0.4rem;
+    align-items: center;
   }
 
   .schedms-add-form input[type="text"] {
     grid-column: 1;
     grid-row: 1;
+    min-height: 2.45rem;
+    font-size: 0.95rem;
+    padding: 0.35rem 0.65rem;
   }
 
   .schedms-add-form select,
-  .schedms-add-form .custom-select {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    min-width: 0;
-  }
-
-  .schedms-add-form .add-task-submit-btn {
+  .schedms-add-form .custom-select,
+  .schedms-add-form.editing-task select,
+  .schedms-add-form.editing-task .custom-select {
     grid-column: 2;
     grid-row: 1;
+    min-width: 5.25rem;
+    max-width: 6.5rem;
+    height: 2.45rem;
   }
 
+  .schedms-add-form .custom-select-button {
+    height: 2.45rem;
+    min-height: 2.45rem;
+    padding: 0.32rem 1.55rem 0.32rem 0.55rem;
+    font-size: 0.88rem;
+  }
+
+  .schedms-add-form .custom-select-button::before {
+    display: none;
+  }
+
+  .schedms-add-form .custom-select-button::after {
+    right: 0.55rem;
+  }
+
+  .schedms-add-form .add-task-submit-btn,
   .schedms-add-form.editing-task .add-task-submit-btn {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 1;
+    min-height: 2.45rem;
+    width: 2.45rem;
+    height: 2.45rem;
   }
 }
 
@@ -4362,6 +4383,33 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   pointer-events: auto !important;
 }
 
+.task-actions-toggle {
+  display: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 1.85rem !important;
+  height: 1.85rem !important;
+  min-width: 1.85rem !important;
+  min-height: 1.85rem !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  opacity: 0.65 !important;
+  box-shadow: none !important;
+  transition: background-color 0.12s ease, color 0.12s ease, opacity 0.12s ease, transform 0.1s ease !important;
+}
+
+.task-actions-toggle:hover,
+.task-actions-toggle:focus-visible,
+.task-item.actions-open .task-actions-toggle {
+  background: var(--control-hover) !important;
+  color: var(--text) !important;
+  opacity: 1 !important;
+}
+
 .task-action-btn {
   display: none !important;
   align-items: center !important;
@@ -4434,8 +4482,13 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 }
 
 @media (hover: none), (pointer: coarse) {
+  .task-actions-toggle {
+    display: inline-flex !important;
+  }
+
   .task-action-btn {
-    opacity: 0.65 !important;
+    display: none !important;
+    opacity: 0.85 !important;
     transform: none !important;
     pointer-events: auto !important;
     width: 2rem !important;
@@ -4446,7 +4499,29 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 
   .task-action-btn.favorite-btn.active,
   .task-action-btn.favorite-btn.is-favorite {
+    display: inline-flex !important;
     opacity: 1 !important;
+  }
+
+  .task-item.actions-open .task-action-btn,
+  .task-item.actions-visible .task-action-btn {
+    display: inline-flex !important;
+    animation: taskActionFadeIn 0.14s ease-out both;
+  }
+
+  .task-item.actions-open .task-action-btn:active {
+    transform: scale(0.92) !important;
+  }
+}
+
+@keyframes taskActionFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(4px) scale(0.94);
+  }
+  to {
+    opacity: 0.95;
+    transform: translateX(0) scale(1);
   }
 }
 
@@ -5372,30 +5447,42 @@ body.theme-dark .rj-owner-thumb,
   .app:not(.rj-mode) .list-stack,
   .app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) > .list-stack,
   .app:not(.rj-mode) .partner-ms-list-stack { display: flex; flex-direction: column; height: auto; min-height: 0; overflow: visible; }
-  .app:not(.rj-mode) .todo-card { min-height: 0; overflow: visible; padding: 0.85rem; }
+  .app:not(.rj-mode) .todo-card { min-height: 0; overflow: visible; padding: 0.65rem 0.75rem; }
   .app:not(.rj-mode) .persistent-card { border-right: 0; }
   .task-actions { opacity: 1; pointer-events: auto; }
-  .task-item { flex-wrap: wrap; }
-  .task-main { flex: 1; }
+  .task-actions-toggle { display: inline-flex !important; }
+  .task-action-btn { display: none !important; }
+  .task-action-btn.favorite-btn.active,
+  .task-action-btn.favorite-btn.is-favorite { display: inline-flex !important; }
+  .task-item.actions-open .task-action-btn,
+  .task-item.actions-visible .task-action-btn { display: inline-flex !important; }
+  .task-item {
+    flex-wrap: nowrap !important;
+    min-height: 2.45rem !important;
+    padding: 0.45rem 0.65rem !important;
+    gap: 0.45rem !important;
+  }
+  .task-main { flex: 1 1 auto !important; min-width: 0 !important; }
 
   /* Full-width lists follow the page flow, with no nested list scrolling. */
   .app.rj-mode .list-stack,
-  .app.rj-mode:not(.paired-rj) .list-stack { display: flex; flex-direction: column; border: 0; gap: 1rem; }
+  .app.rj-mode:not(.paired-rj) .list-stack,
+  .app:not(.rj-mode) .list-stack { display: flex; flex-direction: column; border: 0; gap: 0.65rem; }
   .app.rj-mode .mine-todo-card { order: 1; }
   .app.rj-mode .mine-schedule-card { order: 2; }
   .app.rj-mode .partner-todo-card { order: 3; }
   .app.rj-mode .list-stack > .todo-card,
   .app:not(.rj-mode) .list-stack > .todo-card {
     flex: none; width: 100%; height: auto; max-height: none;
-    padding: 1rem; overflow: visible;
+    padding: 0.65rem 0.75rem !important; overflow: visible;
   }
   .app.rj-mode .irl-card .task-list,
   .app:not(.rj-mode) .task-list { flex: none; height: auto; max-height: none; overflow: visible; }
-  .app.rj-mode .rj-column-header { margin-top: 1rem; }
+  .app.rj-mode .rj-column-header { margin-top: 0.75rem; }
   .app.rj-mode #mine-rj-column-header { margin-top: 0; }
   .app.rj-mode .irl-card .card-header h2 { font-size: 1rem; }
   .app.rj-mode .irl-card .card-header h2::before { display: none; }
-  .app.rj-mode .irl-card .task-item { gap: 0.5rem; padding-block: 0.5rem; }
+  .app.rj-mode .irl-card .task-item { gap: 0.45rem; padding-block: 0.45rem; }
   .app.rj-mode .irl-card .task-copy { line-height: 1.5; }
   .pixel-party { display: none; }
 
@@ -5426,13 +5513,42 @@ body.theme-dark .rj-owner-thumb,
   .rj-owner-toggle:disabled { display: none; }
   .app:not(.rj-mode) .schedms-add-form,
   .app:not(.rj-mode) .schedms-add-form.editing-task {
-    grid-template-columns: minmax(0, 1fr) 2.75rem; gap: 0.75rem;
+    grid-template-columns: minmax(0, 1fr) auto 2.45rem;
+    grid-template-rows: auto;
+    gap: 0.4rem;
+    align-items: center;
   }
-  .schedms-add-form input[type="text"] { grid-column: 1 / -1; grid-row: 1; min-height: 2.75rem; font-size: 1rem; }
+  .schedms-add-form input[type="text"] {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 2.45rem;
+    font-size: 0.95rem;
+    padding: 0.35rem 0.65rem;
+  }
   .schedms-add-form > select, .schedms-add-form > .custom-select,
-  .schedms-add-form.editing-task > select, .schedms-add-form.editing-task > .custom-select { grid-column: 1; grid-row: 2; }
+  .schedms-add-form.editing-task > select, .schedms-add-form.editing-task > .custom-select {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 5.25rem;
+    max-width: 6.5rem;
+    height: 2.45rem;
+  }
+  .schedms-add-form .custom-select-button {
+    height: 2.45rem;
+    min-height: 2.45rem;
+    padding: 0.32rem 1.55rem 0.32rem 0.55rem;
+    font-size: 0.88rem;
+  }
+  .schedms-add-form .custom-select-button::before { display: none; }
+  .schedms-add-form .custom-select-button::after { right: 0.55rem; }
   .schedms-add-form .add-task-submit-btn,
-  .schedms-add-form.editing-task .add-task-submit-btn { grid-column: 2; grid-row: 2; min-height: 2.75rem; }
+  .schedms-add-form.editing-task .add-task-submit-btn {
+    grid-column: 3;
+    grid-row: 1;
+    min-height: 2.45rem;
+    width: 2.45rem;
+    height: 2.45rem;
+  }
 }
 
 .status-pill {

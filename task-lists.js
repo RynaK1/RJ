@@ -397,7 +397,23 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
       deleteButton.title = "Remove item";
       deleteButton.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
-      actions.append(favoriteButton, editButton, deleteButton);
+      const actionsToggle = document.createElement("button");
+      actionsToggle.type = "button";
+      actionsToggle.className = "task-actions-toggle";
+      actionsToggle.setAttribute("aria-label", `More options for: ${task.text}`);
+      actionsToggle.setAttribute("aria-expanded", "false");
+      actionsToggle.title = "More options";
+      actionsToggle.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
+      actionsToggle.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const willOpen = !item.classList.contains("actions-open");
+        dismissMobileTaskActions(willOpen ? item : null);
+        item.classList.toggle("actions-open", willOpen);
+        actionsToggle.setAttribute("aria-expanded", String(willOpen));
+      });
+
+      actions.append(favoriteButton, editButton, deleteButton, actionsToggle);
     } else if (task.priority) {
       partnerFavIndicator = document.createElement("span");
       partnerFavIndicator.className = "task-favorite-indicator";
@@ -463,7 +479,7 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
         if (
           event.button !== 0 ||
           checkbox.disabled ||
-          event.target.closest(".task-action-btn, .task-priority-btn")
+          event.target.closest(".task-action-btn, .task-priority-btn, .task-actions-toggle")
         ) {
           return;
         }
@@ -477,7 +493,7 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
           checkbox.disabled ||
           !taskPointerStart ||
           taskPointerStart.pointerId !== event.pointerId ||
-          event.target.closest(".task-action-btn, .task-priority-btn")
+          event.target.closest(".task-action-btn, .task-priority-btn, .task-actions-toggle")
         ) {
           taskPointerStart = null;
           return;
@@ -1208,7 +1224,23 @@ function renderList(listType) {
     deleteBtn.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
     if (!isReadOnly) {
-      actions.append(favoriteBtn, editBtn, deleteBtn);
+      const actionsToggle = document.createElement("button");
+      actionsToggle.type = "button";
+      actionsToggle.className = "task-actions-toggle";
+      actionsToggle.setAttribute("aria-label", `More options for: ${task.text}`);
+      actionsToggle.setAttribute("aria-expanded", "false");
+      actionsToggle.title = "More options";
+      actionsToggle.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>`;
+      actionsToggle.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const willOpen = !li.classList.contains("actions-open");
+        dismissMobileTaskActions(willOpen ? li : null);
+        li.classList.toggle("actions-open", willOpen);
+        actionsToggle.setAttribute("aria-expanded", String(willOpen));
+      });
+
+      actions.append(favoriteBtn, editBtn, deleteBtn, actionsToggle);
     }
 
     if (isReadOnly || isTaskEditing) {
@@ -1269,7 +1301,7 @@ function renderList(listType) {
       if (
         event.button !== 0 ||
         checkbox.disabled ||
-        event.target.closest(".task-action-btn, .task-priority-btn")
+        event.target.closest(".task-action-btn, .task-priority-btn, .task-actions-toggle")
       ) {
         return;
       }
@@ -1287,7 +1319,7 @@ function renderList(listType) {
         checkbox.disabled ||
         !taskPointerStart ||
         taskPointerStart.pointerId !== event.pointerId ||
-        event.target.closest(".task-action-btn, .task-priority-btn")
+        event.target.closest(".task-action-btn, .task-priority-btn, .task-actions-toggle")
       ) {
         taskPointerStart = null;
         return;
