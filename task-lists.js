@@ -25,7 +25,7 @@ function renderActiveLayout() {
   els.app.classList.toggle("rj-mode", isRjMode);
   els.schedmsQuickAdd.hidden = isReadOnly || isRjMode;
   if (els.schedmsHorizonNav) {
-    els.schedmsHorizonNav.hidden = isReadOnly || isRjMode;
+    els.schedmsHorizonNav.hidden = true;
   }
   els.rjComposer.hidden = !isRjMode || isReadOnly;
   els.recurringTools.hidden = !isRjMode;
@@ -94,7 +94,7 @@ function renderSchedmsHorizon() {
   const isRjMode = state.activeListSet === "rj";
   if (isRjMode) return;
 
-  const cadence = state.activeMsCadence || "daily";
+  const cadence = state.activeMsCadence || "all";
   const hasPairing = Boolean(getAcceptedPairing());
 
   document.querySelectorAll(".schedms-horizon-tab").forEach((tab) => {
@@ -1026,7 +1026,12 @@ function renderReadOnlyTaskList(listType, tasks, listEl, emptyEl) {
 
   visibleTasks.forEach((task) => {
     const item = document.createElement("li");
-    item.className = `task-item partner-task-item ${task.done ? "done" : ""} ${task.priority ? "priority" : ""}`;
+    item.className = `task-item partner-task-item ${task.done ? "done" : ""} ${task.priority ? "priority" : ""} ${
+      isRecurringTask(task) ? "recurring-task" : ""
+    }`;
+    item.dataset.taskId = task.id;
+    item.dataset.owner = "partner";
+    item.dataset.recurring = String(isRecurringTask(task));
 
     let partnerFavIndicator = null;
     if (task.priority) {
@@ -1103,6 +1108,7 @@ function renderList(listType) {
       isRecurringTask(task) ? "recurring-task" : ""
     }`;
     li.dataset.taskId = task.id;
+    li.dataset.owner = "mine";
     li.dataset.recurring = String(isRecurringTask(task));
     li.dataset.taskGroup = getRjTaskGroup(task);
     li.draggable =

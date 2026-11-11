@@ -114,7 +114,7 @@ const defaultState = {
   lastSavedAt: "",
   deletedTaskIds: [],
   activeListSet: INITIAL_LIST_SET_ID,
-  activeMsCadence: "daily",
+  activeMsCadence: "all",
   listSets: {
     schedms: createDefaultListSetState(),
     rj: createDefaultListSetState(),
@@ -1032,7 +1032,7 @@ function setSchedmsAddError(message) {
 }
 
 function setSchedmsCadence(cadence) {
-  state.activeMsCadence = ["daily", "weekly", "persistent", "all"].includes(cadence) ? cadence : "daily";
+  state.activeMsCadence = ["daily", "weekly", "persistent", "all"].includes(cadence) ? cadence : "all";
   saveState();
   renderSchedmsHorizon();
 }
@@ -2940,7 +2940,7 @@ function normalizeStateData(parsed) {
     },
     lastSavedAt: normalizeSavedAt(parsed?.lastSavedAt),
     activeListSet: normalizeListSetId(parsed?.activeListSet),
-    activeMsCadence: ["daily", "weekly", "persistent", "all"].includes(parsed?.activeMsCadence) ? parsed.activeMsCadence : "daily",
+    activeMsCadence: ["daily", "weekly", "persistent", "all"].includes(parsed?.activeMsCadence) ? parsed.activeMsCadence : "all",
     deletedTaskIds: normalizeDeletedTaskIds(parsed?.deletedTaskIds),
     listSets,
   };

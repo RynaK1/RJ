@@ -89,50 +89,50 @@ body.theme-light {
 
 :root[data-theme="dark"],
 body.theme-dark {
-  --bg: #121614;
-  --panel: #1b221e;
-  --muted: #95a59a;
-  --text: #f4efd8;
-  --accent: #f4efd8;
-  --accent-soft: #253129;
-  --shared-surface: #222d26;
-  --shared-surface-hover: #2b3930;
-  --shared-border: rgba(244, 239, 216, 0.25);
-  --shared-task-bg: rgba(255, 255, 255, 0.05);
-  --shared-task-hover: rgba(255, 255, 255, 0.1);
-  --focus-ring: rgba(244, 239, 216, 0.3);
-  --control-bg: #1b221e;
-  --control-border: rgba(244, 239, 216, 0.28);
-  --control-hover: #26312a;
-  --border: rgba(244, 239, 216, 0.2);
-  --danger-bg: #341d1e;
-  --danger-border: #6e3336;
+  --bg: #121212;
+  --panel: #1e1e1e;
+  --muted: #8e8e8e;
+  --text: #f0f0f0;
+  --accent: #f0f0f0;
+  --accent-soft: #2a2a2a;
+  --shared-surface: #262626;
+  --shared-surface-hover: #303030;
+  --shared-border: rgba(255, 255, 255, 0.14);
+  --shared-task-bg: rgba(255, 255, 255, 0.04);
+  --shared-task-hover: rgba(255, 255, 255, 0.08);
+  --focus-ring: rgba(255, 255, 255, 0.25);
+  --control-bg: #222222;
+  --control-border: rgba(255, 255, 255, 0.16);
+  --control-hover: #2c2c2c;
+  --border: #2c2c2c;
+  --danger-bg: #2d1a1b;
+  --danger-border: #5c2b2e;
   --danger-text: #fca5a5;
   --gold: #fbbf24;
-  --gold-hover: rgba(251, 191, 36, 0.18);
-  --task-bg: #1b221e;
-  --task-hover: #242c27;
-  --scrollbar-thumb: rgba(244, 239, 216, 0.25);
-  --scrollbar-thumb-hover: rgba(244, 239, 216, 0.45);
-  --scrollbar-track: rgba(18, 22, 20, 0.6);
-  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-  --card-shadow-hover: 0 6px 24px rgba(0, 0, 0, 0.45);
+  --gold-hover: rgba(251, 191, 36, 0.15);
+  --task-bg: #1e1e1e;
+  --task-hover: #262626;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.35);
+  --scrollbar-track: #141414;
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --card-shadow-hover: 0 6px 24px rgba(0, 0, 0, 0.55);
 
-  --pastel-daily-bg: rgba(20, 184, 166, 0.16);
-  --pastel-daily-text: #5eead4;
-  --pastel-daily-border: rgba(94, 234, 212, 0.3);
-  --pastel-weekly-bg: rgba(168, 85, 247, 0.16);
-  --pastel-weekly-text: #d8b4fe;
-  --pastel-weekly-border: rgba(216, 180, 254, 0.3);
-  --pastel-todo-bg: rgba(245, 158, 11, 0.16);
-  --pastel-todo-text: #fcd34d;
-  --pastel-todo-border: rgba(252, 211, 77, 0.3);
-  --pastel-irl-bg: rgba(244, 63, 94, 0.16);
-  --pastel-irl-text: #fda4af;
-  --pastel-irl-border: rgba(253, 164, 175, 0.3);
-  --pastel-emerald-bg: rgba(16, 185, 129, 0.16);
-  --pastel-emerald-text: #6ee7b7;
-  --pastel-emerald-border: rgba(110, 231, 183, 0.3);
+  --pastel-daily-bg: rgba(255, 255, 255, 0.06);
+  --pastel-daily-text: #e0e0e0;
+  --pastel-daily-border: rgba(255, 255, 255, 0.14);
+  --pastel-weekly-bg: rgba(255, 255, 255, 0.06);
+  --pastel-weekly-text: #e0e0e0;
+  --pastel-weekly-border: rgba(255, 255, 255, 0.14);
+  --pastel-todo-bg: rgba(255, 255, 255, 0.06);
+  --pastel-todo-text: #e0e0e0;
+  --pastel-todo-border: rgba(255, 255, 255, 0.14);
+  --pastel-irl-bg: rgba(255, 255, 255, 0.06);
+  --pastel-irl-text: #e0e0e0;
+  --pastel-irl-border: rgba(255, 255, 255, 0.14);
+  --pastel-emerald-bg: rgba(255, 255, 255, 0.06);
+  --pastel-emerald-text: #e0e0e0;
+  --pastel-emerald-border: rgba(255, 255, 255, 0.14);
 }
 
 
@@ -2640,14 +2640,11 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 /* MS Horizon Cadence Tabs */
 
 .schedms-horizon-nav {
-  display: flex;
-  justify-content: center;
-  width: min(100%, 36rem);
-  margin: 0 auto 0.65rem;
+  display: none !important;
 }
 
 .schedms-horizon-nav[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .schedms-horizon-tabs {
@@ -3937,11 +3934,16 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 .app:not(.rj-mode) .partner-ms-section > .ms-owner-label,
 .app:not(.rj-mode) .partner-ms-list-stack > .ms-owner-label {
   position: static;
-  display: block;
-  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  font-size: 1.05rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--text);
-  margin: 0 0 0.5rem 0.2rem;
+  padding: 0 0.2rem;
+  margin: 0 0 -0.25rem 0.2rem;
+  min-height: 0;
+  line-height: 1.2;
 }
 
 .app:not(.rj-mode) .partner-ms-section {
@@ -4267,21 +4269,25 @@ body:not(.rj-mode) .app:not(.rj-mode) {
   display: none;
 }
 
-.app.rj-mode .task-item[data-owner="mine"] {
+.task-item[data-owner="mine"],
+.app:not(.rj-mode) #lists-view > .list-stack > .todo-card .task-item {
   border-left: 3.5px solid var(--user-color, #3d7a5a) !important;
 }
 
-.app.rj-mode .task-item[data-owner="partner"],
-.app.rj-mode .task-item.partner-task-item {
+.task-item[data-owner="partner"],
+.task-item.partner-task-item,
+.app:not(.rj-mode) .partner-ms-section .task-item {
   border-left: 3.5px solid var(--partner-color, #b35d67) !important;
 }
 
-.app.rj-mode .task-item[data-owner="shared"] {
+.task-item[data-owner="shared"] {
   border-left: 3.5px solid var(--shared-color, #786b60) !important;
 }
 
-.app.rj-mode .task-item.done[data-owner],
-.app.rj-mode .task-item.done.partner-task-item {
+.task-item.done,
+.task-item.done[data-owner],
+.task-item.done.partner-task-item,
+.app:not(.rj-mode) .task-item.done {
   border-left-color: var(--border) !important;
 }
 
@@ -4794,7 +4800,7 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 
 body.theme-dark .rj-owner-thumb,
 :root[data-theme="dark"] .rj-owner-thumb {
-  background: #2d3b32;
+  background: #333333;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
@@ -5214,21 +5220,24 @@ body.theme-dark .rj-owner-thumb,
   .app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 1.5rem;
+    row-gap: 0.85rem;
+    column-gap: 1.5rem;
     align-items: start;
+    align-content: start;
+    grid-template-rows: auto minmax(0, 1fr);
     width: 100%;
     max-width: 74rem;
     margin: 0 auto;
   }
 
   .app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) > .schedms-horizon-nav {
-    grid-column: 1 / -1;
-    justify-self: center;
+    display: none !important;
   }
 
   .app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) > .schedms-quick-add {
     grid-column: 1 / -1;
     justify-self: center;
+    margin: 0 auto 0.25rem !important;
   }
 
   .app:not(.rj-mode) #lists-view:has(.partner-ms-section:not([hidden])) > .list-stack {
