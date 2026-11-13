@@ -672,6 +672,7 @@ function wireEvents() {
   els.recurringInterval.addEventListener("change", handleRecurringIntervalChange);
   els.recurringShowDays.addEventListener("change", handleRecurringShowDayChange);
   wireRjSchedulePanels();
+  wireTaskHoverTooltip();
 
   els.addForms.forEach((form) => {
     form.addEventListener("submit", (event) => {
@@ -699,23 +700,31 @@ function wireEvents() {
 
   els.rjTargetButtons.forEach((btn) => {
     btn.addEventListener("click", (event) => {
+      event.preventDefault();
       const clickedKind = btn.dataset.rjKind;
       const datePickerWasHidden = els.rjScheduleDateWrap ? els.rjScheduleDateWrap.hidden : true;
+      const form = btn.closest("form");
 
-      if (clickedKind === RJ_LIST_KIND_SCHEDULE && datePickerWasHidden) {
-        event.preventDefault();
+      // If clicking the button for the mode that is ALREADY active, submit the item
+      if (clickedKind === activeRjComposerKind && (!datePickerWasHidden || clickedKind === RJ_LIST_KIND_TODO)) {
+        if (form) {
+          handleTaskFormSubmit(form);
+        }
+        return;
+      }
+
+      // Switching to Schedule/Event mode
+      if (clickedKind === RJ_LIST_KIND_SCHEDULE) {
         activeRjComposerKind = RJ_LIST_KIND_SCHEDULE;
         if (els.rjScheduleDateWrap) {
           els.rjScheduleDateWrap.hidden = false;
         }
         updateRjTargetButtons();
-        if (els.rjScheduleDate) {
-          els.rjScheduleDate.focus();
-        }
         return;
       }
 
-      if (clickedKind === RJ_LIST_KIND_TODO && activeRjComposerKind === RJ_LIST_KIND_SCHEDULE) {
+      // Switching to To-do mode
+      if (clickedKind === RJ_LIST_KIND_TODO) {
         activeRjComposerKind = RJ_LIST_KIND_TODO;
         if (els.rjScheduleDateWrap) {
           els.rjScheduleDateWrap.hidden = true;
@@ -731,6 +740,31 @@ function wireEvents() {
       updateRjTargetButtons();
     });
   });
+
+  const persistentInput = document.getElementById("persistent-input");
+  if (persistentInput) {
+    persistentInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        const form = persistentInput.closest("form");
+        if (form) {
+          handleTaskFormSubmit(form);
+        }
+      }
+    });
+  }
+
+  if (els.rjScheduleDate) {
+    els.rjScheduleDate.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        const form = els.rjScheduleDate.closest("form");
+        if (form) {
+          handleTaskFormSubmit(form);
+        }
+      }
+    });
+  }
 
   if (els.rjScheduleDateWrap) {
     els.rjScheduleDateWrap.addEventListener("click", () => {
@@ -1170,16 +1204,16 @@ function handleTaskFormSubmit(form, submitter = null) {
   setRecurringError("");
 
   if (isEditing) {
-    updateEditedTask(listType, text, isTaskOptionsSubmit, submitter?.dataset?.rjKind);
+    updateEditedTask(listType, text, isTaskOptionsSubmit, activeRjComposerKind || submitter?.dataset?.rjKind);
     return;
   }
 
   if (state.activeListSet === "rj" && listType === "persistent") {
-    const kind = submitter?.dataset?.rjKind || activeRjComposerKind || RJ_LIST_KIND_TODO;
+    const kind = activeRjComposerKind || submitter?.dataset?.rjKind || RJ_LIST_KIND_TODO;
     const chosenDate =
       kind === RJ_LIST_KIND_SCHEDULE && els.rjScheduleDate?.value
         ? els.rjScheduleDate.value
-        : null;
+        : (kind === RJ_LIST_KIND_SCHEDULE ? dailyPeriodId(new Date()) : null);
     addNewRjItem(
       text,
       rjComposerOwner,
@@ -1189,6 +1223,9 @@ function handleTaskFormSubmit(form, submitter = null) {
     activeRjComposerKind = RJ_LIST_KIND_TODO;
     if (els.rjScheduleDateWrap) {
       els.rjScheduleDateWrap.hidden = true;
+    }
+    if (els.rjScheduleDate) {
+      els.rjScheduleDate.value = dailyPeriodId(new Date());
     }
     updateRjTargetButtons();
     return;
@@ -1514,6 +1551,78 @@ function wireRjSchedulePanels() {
       closeRjSchedulePanel();
     }
   });
+}
+
+function wireTaskHoverTooltip() {
+  const tooltip = document.getElementById("task-hover-tooltip");
+  if (!tooltip) return;
+
+  let currentItem = null;
+
+  const getTaskText = (el) => {
+    if (el.classList.contains("editing")) return null;
+    const copyEl = el.querySelector(".task-copy, .recurring-summary-title");
+    return copyEl ? copyEl.textContent.trim() : null;
+  };
+
+  const hideTooltip = () => {
+    currentItem = null;
+    tooltip.classList.remove("visible");
+  };
+
+  const updatePosition = (clientX, clientY) => {
+    const pad = 10;
+    let left = clientX + 12;
+    let top = clientY + 14;
+    const rect = tooltip.getBoundingClientRect();
+
+    if (left + rect.width > window.innerWidth - pad) {
+      left = clientX - rect.width - 8;
+    }
+    if (top + rect.height > window.innerHeight - pad) {
+      top = clientY - rect.height - 8;
+    }
+
+    tooltip.style.left = `${Math.max(pad, left)}px`;
+    tooltip.style.top = `${Math.max(pad, top)}px`;
+  };
+
+  document.addEventListener("pointerover", (event) => {
+    if (event.pointerType === "touch") return;
+    const item = event.target.closest(".task-item, .recurring-summary-item");
+    if (!item) {
+      if (currentItem) hideTooltip();
+      return;
+    }
+
+    const text = getTaskText(item);
+    if (!text) {
+      hideTooltip();
+      return;
+    }
+
+    currentItem = item;
+    tooltip.textContent = text;
+    tooltip.classList.add("visible");
+    updatePosition(event.clientX, event.clientY);
+  });
+
+  document.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "touch" || !currentItem) return;
+    updatePosition(event.clientX, event.clientY);
+  });
+
+  document.addEventListener("pointerout", (event) => {
+    if (!currentItem) return;
+    const related = event.relatedTarget;
+    if (!related || !currentItem.contains(related)) {
+      hideTooltip();
+    }
+  });
+
+  window.addEventListener("scroll", hideTooltip, true);
+  document.addEventListener("pointerdown", hideTooltip, true);
+  document.addEventListener("dragstart", hideTooltip, true);
 }
 
 function setRjSchedulePanelOpen(panel, isOpen) {

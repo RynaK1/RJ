@@ -4647,8 +4647,29 @@ body:not(.rj-mode) .app:not(.rj-mode) {
 .task-owner-badge {
   display: none !important;
 }
-  letter-spacing: 0.01em;
-  margin-left: 0.25rem;
+
+.partner-task-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.15rem !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+}
+
+.task-actions-spacer {
+  display: none;
+  width: 1.85rem;
+  height: 1.85rem;
+  min-width: 1.85rem;
+  flex: 0 0 1.85rem;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .task-actions-spacer {
+    display: inline-block !important;
+    visibility: hidden;
+  }
 }
 
 .task-owner-badge.owner-mine {
@@ -5778,4 +5799,40 @@ body.theme-dark .rj-schedule-date-wrap .rj-schedule-date-input,
 
 [hidden] {
   display: none !important;
+}
+
+/* Floating Task Hover Tooltip on Mouse */
+.task-hover-tooltip {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  background: var(--text, #2c2925);
+  color: var(--bg, #f7f4ee);
+  padding: 0.35rem 0.65rem;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.35;
+  max-width: min(24rem, 80vw);
+  word-wrap: break-word;
+  white-space: normal;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.96);
+  transition: opacity 0.08s ease, transform 0.08s ease;
+}
+
+.task-hover-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+}
+
+body.theme-dark .task-hover-tooltip,
+:root[data-theme="dark"] .task-hover-tooltip {
+  background: #1e1e1e;
+  color: #f0f0f0;
+  border: 1px solid var(--border, #333);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }

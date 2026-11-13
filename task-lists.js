@@ -420,12 +420,21 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
       });
 
       actions.append(favoriteButton, editButton, deleteButton, actionsToggle);
-    } else if (task.priority) {
-      partnerFavIndicator = document.createElement("span");
-      partnerFavIndicator.className = "task-favorite-indicator";
-      partnerFavIndicator.setAttribute("aria-label", "Favorited task");
-      partnerFavIndicator.title = "Favorited task";
-      partnerFavIndicator.innerHTML = `<svg class="action-icon star-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+    } else {
+      actions = document.createElement("div");
+      actions.className = "task-actions partner-task-actions";
+      if (task.priority) {
+        partnerFavIndicator = document.createElement("span");
+        partnerFavIndicator.className = "task-favorite-indicator";
+        partnerFavIndicator.setAttribute("aria-label", "Favorited task");
+        partnerFavIndicator.title = "Favorited task";
+        partnerFavIndicator.innerHTML = `<svg class="action-icon star-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+        actions.appendChild(partnerFavIndicator);
+      }
+      const actionsSpacer = document.createElement("span");
+      actionsSpacer.className = "task-actions-spacer";
+      actionsSpacer.setAttribute("aria-hidden", "true");
+      actions.appendChild(actionsSpacer);
     }
 
     if (isTaskEditing) {
@@ -589,7 +598,7 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
     if (actions) {
       item.appendChild(actions);
     }
-    if (partnerFavIndicator) {
+    if (partnerFavIndicator && !actions?.contains(partnerFavIndicator)) {
       item.appendChild(partnerFavIndicator);
     }
     if (repeatBadge) {
@@ -910,14 +919,20 @@ function renderReadOnlyRjScheduleList(tasks) {
       isRecurringTask(task) ? "recurring-task" : ""
     }`;
 
-    let partnerFavIndicator = null;
+    const actions = document.createElement("div");
+    actions.className = "task-actions partner-task-actions";
     if (task.priority) {
-      partnerFavIndicator = document.createElement("span");
+      const partnerFavIndicator = document.createElement("span");
       partnerFavIndicator.className = "task-favorite-indicator";
       partnerFavIndicator.setAttribute("aria-label", "Favorited task");
       partnerFavIndicator.title = "Favorited task";
       partnerFavIndicator.innerHTML = `<svg class="action-icon star-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+      actions.appendChild(partnerFavIndicator);
     }
+    const actionsSpacer = document.createElement("span");
+    actionsSpacer.className = "task-actions-spacer";
+    actionsSpacer.setAttribute("aria-hidden", "true");
+    actions.appendChild(actionsSpacer);
 
     const label = document.createElement("label");
     label.className = "task-main";
@@ -931,6 +946,16 @@ function renderReadOnlyRjScheduleList(tasks) {
     copy.textContent = task.text;
     label.append(checkbox, copy);
 
+    // Schedule date chip
+    const dateId = getTaskAppearanceDateId(task);
+    const todayId = dailyPeriodId(new Date());
+    const dateChip = document.createElement("span");
+    const isPast = dateId && dateId < todayId && !task.done;
+    const isToday = dateId === todayId;
+    dateChip.className = `task-date-chip ${isPast ? "is-past" : ""} ${isToday ? "is-today" : ""}`;
+    dateChip.textContent = formatTaskDateChipText(dateId);
+    label.appendChild(dateChip);
+
     let repeatBadge = null;
     if (isRecurringTask(task)) {
       repeatBadge = document.createElement("span");
@@ -940,10 +965,7 @@ function renderReadOnlyRjScheduleList(tasks) {
       repeatBadge.title = `${formatRecurringIntervalLabel(task.intervalDays)}; ${formatRecurringShowDays(task)}`;
     }
 
-    item.append(label);
-    if (partnerFavIndicator) {
-      item.appendChild(partnerFavIndicator);
-    }
+    item.append(label, actions);
     if (repeatBadge) {
       item.appendChild(repeatBadge);
     }

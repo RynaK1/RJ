@@ -115,11 +115,11 @@
             </div>
             <div class="rj-composer-actions">
               <div class="rj-target-grid" role="group" aria-label="Choose where to add this item">
-                <button class="rj-target-btn active" type="submit" data-rj-kind="todo" aria-label="Add to my to-do list" title="Add to my to-do list">
+                <button class="rj-target-btn active" type="button" data-rj-kind="todo" aria-label="Add to my to-do list" title="Add to my to-do list">
                   <span class="rj-target-symbol rj-kind-symbol" aria-hidden="true">&#10003;</span>
                   <span class="rj-target-label">To-do</span>
                 </button>
-                <button class="rj-target-btn" type="submit" data-rj-kind="schedule" aria-label="Add to my schedule" title="Add to my schedule">
+                <button class="rj-target-btn" type="button" data-rj-kind="schedule" aria-label="Add to my schedule" title="Add to my schedule">
                   <span class="rj-target-symbol rj-kind-symbol" aria-hidden="true">&#128197;</span>
                   <span class="rj-target-label">Event</span>
                 </button>
@@ -422,6 +422,8 @@
         </section>
       </div>
     </main>
+
+    <div id="task-hover-tooltip" class="task-hover-tooltip" role="tooltip" aria-hidden="true"></div>
 
     <!-- Helpers declare functions only; app.js owns shared state and starts the planner. -->
     <script src="planner-time.js"></script>
