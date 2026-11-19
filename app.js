@@ -51,6 +51,8 @@ const RJ_LIST_KIND_TODO = "todo";
 const RJ_LIST_KIND_SCHEDULE = "schedule";
 const ADD_TASK_SYMBOL = "";
 const SAVE_TASK_SYMBOL = "✓";
+const RJ_ICON_USER_MINE_SVG = `<svg class="rj-symbol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+const RJ_ICON_USERS_SHARED_SVG = `<svg class="rj-symbol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
 const DEFAULT_TIMEZONE_OFFSET = "-08:00";
 const SCHEDMS_WEEKLY_RESET_DAY_UTC = 4;
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -2010,7 +2012,7 @@ function updateRjTargetButtons() {
   const ownerIcon = els.rjOwnerToggle.querySelector(".rj-owner-icon");
   const ownerLabel = els.rjOwnerToggle.querySelector(".rj-owner-label");
   if (ownerIcon) {
-    ownerIcon.textContent = isShared ? "👥" : "👤";
+    ownerIcon.innerHTML = isShared ? RJ_ICON_USERS_SHARED_SVG : RJ_ICON_USER_MINE_SVG;
   }
   if (ownerLabel) {
     ownerLabel.textContent = isShared ? "Shared" : "Mine";

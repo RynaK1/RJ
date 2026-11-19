@@ -59,6 +59,7 @@ body.theme-light {
   --scrollbar-track: #f7f4ee;
   --card-shadow: 0 1px 3px 0 rgba(44, 41, 37, 0.05), 0 1px 2px -1px rgba(44, 41, 37, 0.04);
   --card-shadow-hover: 0 4px 8px -1px rgba(44, 41, 37, 0.07), 0 2px 4px -2px rgba(44, 41, 37, 0.04);
+  --modal-backdrop: rgba(44, 41, 37, 0.3);
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 16px;
@@ -117,6 +118,7 @@ body.theme-dark {
   --scrollbar-track: #141414;
   --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   --card-shadow-hover: 0 6px 24px rgba(0, 0, 0, 0.55);
+  --modal-backdrop: rgba(0, 0, 0, 0.65);
 
   --pastel-daily-bg: rgba(255, 255, 255, 0.06);
   --pastel-daily-text: #e0e0e0;
@@ -1735,9 +1737,15 @@ button:not(:disabled):not(.settings-backdrop):active,
 
 .settings-backdrop,
 .app.rj-mode .settings-backdrop {
-  background: rgba(28, 42, 32, 0.42);
+  background: var(--modal-backdrop, rgba(44, 41, 37, 0.3));
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  transition: background 0.2s ease;
+}
+
+body.theme-dark .settings-backdrop,
+:root[data-theme="dark"] .settings-backdrop {
+  background: var(--modal-backdrop, rgba(0, 0, 0, 0.65));
 }
 
 .task-list,
@@ -4934,10 +4942,28 @@ body.theme-dark .rj-target-btn:hover {
 }
 
 .rj-target-symbol {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
   font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
   font-size: 0.95rem;
   font-weight: 400;
   line-height: 1;
+}
+
+.rj-symbol-icon,
+.rj-target-symbol svg,
+.rj-owner-icon svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
 .rj-target-label {
@@ -5100,6 +5126,9 @@ body.theme-dark .rj-schedule-date-wrap .rj-schedule-date-input,
 }
 
 .rj-owner-icon {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
   font-size: 0.95rem;
   line-height: 1;
 }
