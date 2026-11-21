@@ -1,4 +1,4 @@
-﻿"""Run isolated browser regression tests without contacting Supabase.
+"""Run isolated browser regression tests without contacting Supabase.
 Usage: python tests/run-task-retention.py [--chrome PATH]
 """
 import argparse
@@ -15,8 +15,9 @@ args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 html = (root / 'index.html').read_text(encoding='utf-8')
 def inline(match):
-    source = subprocess.check_output(['git', 'show', 'HEAD:' + match[1]], cwd=root).decode('utf-8') if args.baseline else (root / match[1]).read_text(encoding='utf-8')
-    if match[1] == 'app.js':
+    script_path = match[1].split('?')[0]
+    source = subprocess.check_output(['git', 'show', 'HEAD:' + script_path], cwd=root).decode('utf-8') if args.baseline else (root / script_path).read_text(encoding='utf-8')
+    if script_path == 'app.js':
         source = source.replace('initialize();', '/* Isolated test: no auth or timers. */', 1)
     return '<script>' + source + '</script>'
 html = re.sub(r'<script src="([^"]+)"></script>', inline, html)

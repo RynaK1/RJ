@@ -5238,6 +5238,18 @@ body.theme-dark .rj-schedule-date-wrap .rj-schedule-date-input,
     font-size: 0.84rem !important;
   }
 
+  .app.rj-mode .rj-symbol-icon,
+  .app.rj-mode .rj-target-symbol svg,
+  .app.rj-mode .rj-owner-icon svg {
+    width: 0.95rem !important;
+    height: 0.95rem !important;
+    min-width: 0.95rem !important;
+    min-height: 0.95rem !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    flex-shrink: 0 !important;
+  }
+
   .app.rj-mode .recurring-toggle-btn {
     width: 2.25rem !important;
     height: 2.25rem !important;

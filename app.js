@@ -51,8 +51,9 @@ const RJ_LIST_KIND_TODO = "todo";
 const RJ_LIST_KIND_SCHEDULE = "schedule";
 const ADD_TASK_SYMBOL = "";
 const SAVE_TASK_SYMBOL = "✓";
-const RJ_ICON_USER_MINE_SVG = `<svg class="rj-symbol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
-const RJ_ICON_USERS_SHARED_SVG = `<svg class="rj-symbol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+const RJ_ICON_USER_MINE_SVG = `<svg class="rj-symbol-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+const RJ_ICON_USERS_SHARED_SVG = `<svg class="rj-symbol-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+const RJ_ICON_EVENT_SVG = `<svg class="rj-symbol-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
 const DEFAULT_TIMEZONE_OFFSET = "-08:00";
 const SCHEDMS_WEEKLY_RESET_DAY_UTC = 4;
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -704,40 +705,23 @@ function wireEvents() {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       const clickedKind = btn.dataset.rjKind;
-      const datePickerWasHidden = els.rjScheduleDateWrap ? els.rjScheduleDateWrap.hidden : true;
-      const form = btn.closest("form");
 
-      // If clicking the button for the mode that is ALREADY active, submit the item
-      if (clickedKind === activeRjComposerKind && (!datePickerWasHidden || clickedKind === RJ_LIST_KIND_TODO)) {
-        if (form) {
-          handleTaskFormSubmit(form);
-        }
-        return;
-      }
-
-      // Switching to Schedule/Event mode
+      // Pure toggle between To-do and Event modes without submitting
       if (clickedKind === RJ_LIST_KIND_SCHEDULE) {
         activeRjComposerKind = RJ_LIST_KIND_SCHEDULE;
         if (els.rjScheduleDateWrap) {
           els.rjScheduleDateWrap.hidden = false;
         }
-        updateRjTargetButtons();
-        return;
-      }
-
-      // Switching to To-do mode
-      if (clickedKind === RJ_LIST_KIND_TODO) {
+      } else if (clickedKind === RJ_LIST_KIND_TODO) {
         activeRjComposerKind = RJ_LIST_KIND_TODO;
         if (els.rjScheduleDateWrap) {
           els.rjScheduleDateWrap.hidden = true;
         }
-        updateRjTargetButtons();
-        return;
-      }
-
-      activeRjComposerKind = clickedKind;
-      if (els.rjScheduleDateWrap) {
-        els.rjScheduleDateWrap.hidden = activeRjComposerKind !== RJ_LIST_KIND_SCHEDULE;
+      } else {
+        activeRjComposerKind = clickedKind;
+        if (els.rjScheduleDateWrap) {
+          els.rjScheduleDateWrap.hidden = activeRjComposerKind !== RJ_LIST_KIND_SCHEDULE;
+        }
       }
       updateRjTargetButtons();
     });
@@ -746,7 +730,7 @@ function wireEvents() {
   const persistentInput = document.getElementById("persistent-input");
   if (persistentInput) {
     persistentInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      if ((event.key === "Enter" || event.keyCode === 13) && !event.shiftKey) {
         event.preventDefault();
         const form = persistentInput.closest("form");
         if (form) {
@@ -758,7 +742,7 @@ function wireEvents() {
 
   if (els.rjScheduleDate) {
     els.rjScheduleDate.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      if ((event.key === "Enter" || event.keyCode === 13) && !event.shiftKey) {
         event.preventDefault();
         const form = els.rjScheduleDate.closest("form");
         if (form) {
@@ -1198,7 +1182,10 @@ function handleTaskFormSubmit(form, submitter = null) {
   const isEditing = isEditingTask(listType);
 
   if (text.length < 1) {
-    setFormError(listType, "Task must be at least 1 character.");
+    const now = Date.now();
+    if (!form._lastTaskSubmitTime || now - form._lastTaskSubmitTime > 500) {
+      setFormError(listType, "Task must be at least 1 character.");
+    }
     return;
   }
 
@@ -1206,12 +1193,14 @@ function handleTaskFormSubmit(form, submitter = null) {
   setRecurringError("");
 
   if (isEditing) {
+    form._lastTaskSubmitTime = Date.now();
     updateEditedTask(listType, text, isTaskOptionsSubmit, activeRjComposerKind || submitter?.dataset?.rjKind);
     return;
   }
 
   if (state.activeListSet === "rj" && listType === "persistent") {
-    const kind = activeRjComposerKind || submitter?.dataset?.rjKind || RJ_LIST_KIND_TODO;
+    form._lastTaskSubmitTime = Date.now();
+    const kind = activeRjComposerKind === RJ_LIST_KIND_SCHEDULE ? RJ_LIST_KIND_SCHEDULE : RJ_LIST_KIND_TODO;
     const chosenDate =
       kind === RJ_LIST_KIND_SCHEDULE && els.rjScheduleDate?.value
         ? els.rjScheduleDate.value
@@ -1233,6 +1222,7 @@ function handleTaskFormSubmit(form, submitter = null) {
     return;
   }
 
+  form._lastTaskSubmitTime = Date.now();
   addNewTask(listType, text, isTaskOptionsSubmit);
 }
 
@@ -2002,6 +1992,13 @@ function updateRjTargetButtons() {
     const actionLabel = `${isEditing ? "Save to" : "Add to"} ${ownerLabel} ${kindLabel}`;
     button.setAttribute("aria-label", actionLabel);
     button.title = actionLabel;
+
+    if (button.dataset.rjKind === RJ_LIST_KIND_SCHEDULE) {
+      const sym = button.querySelector(".rj-kind-symbol");
+      if (sym && (!sym.querySelector("svg") || sym.innerHTML !== RJ_ICON_EVENT_SVG)) {
+        sym.innerHTML = RJ_ICON_EVENT_SVG;
+      }
+    }
   });
 
   const isShared = rjComposerOwner === "shared";

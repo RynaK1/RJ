@@ -163,6 +163,32 @@ function formatTaskDateChipText(dateId) {
   }).format(d);
 }
 
+const RJ_SCHEDULE_DAY_ORDER_KEY = "rj_schedule_day_order";
+
+function getScheduleDayOrder(dateId) {
+  if (!dateId) return [];
+  try {
+    const raw = localStorage.getItem(RJ_SCHEDULE_DAY_ORDER_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed?.[dateId]) ? parsed[dateId] : [];
+  } catch {
+    return [];
+  }
+}
+
+function setScheduleDayOrder(dateId, taskIds) {
+  if (!dateId || !Array.isArray(taskIds)) return;
+  try {
+    const raw = localStorage.getItem(RJ_SCHEDULE_DAY_ORDER_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    parsed[dateId] = taskIds;
+    localStorage.setItem(RJ_SCHEDULE_DAY_ORDER_KEY, JSON.stringify(parsed));
+  } catch {
+    // Ignore storage quota/security errors
+  }
+}
+
 function renderMineRjScheduleList() {
   if (state.activeListSet !== "rj") {
     return;
@@ -213,7 +239,7 @@ function renderMineRjScheduleList() {
 
   const allScheduled = [...myTasks, ...sharedTasks, ...partnerTasks];
 
-  // Chronological sort: by date ascending
+  // Chronological sort: by date ascending; same-day tasks follow priority and user day order
   allScheduled.sort((a, b) => {
     if (Boolean(a.done) !== Boolean(b.done)) {
       return a.done ? 1 : -1;
@@ -225,6 +251,16 @@ function renderMineRjScheduleList() {
     }
     if (Boolean(a.priority) !== Boolean(b.priority)) {
       return a.priority ? -1 : 1;
+    }
+    const dayOrder = getScheduleDayOrder(dateA);
+    if (dayOrder && dayOrder.length > 0) {
+      const idxA = dayOrder.indexOf(a.id);
+      const idxB = dayOrder.indexOf(b.id);
+      if (idxA !== -1 && idxB !== -1) {
+        return idxA - idxB;
+      }
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
     }
     return 0;
   });
@@ -289,6 +325,9 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
     item.dataset.owner = taskOwner;
     item.dataset.recurring = String(isRecurringTask(task));
     item.dataset.taskGroup = getRjTaskGroup(task);
+    if (kind === RJ_LIST_KIND_SCHEDULE) {
+      item.dataset.taskDate = getTaskAppearanceDateId(task);
+    }
     item.draggable = !task.done && !isTaskEditing && !isPartner;
 
     if (isTaskEditing) {
@@ -311,6 +350,7 @@ function renderInteractiveRjList(tasks, listEl, emptyEl, owner, kind) {
           kind,
           taskId: task.id,
           taskGroup: getRjTaskGroup(task),
+          taskDate: getTaskAppearanceDateId(task),
           insertIndex: null,
           listEl,
         };
@@ -634,14 +674,52 @@ function wireRjListDragSurface(listEl, owner, kind) {
     event.preventDefault();
     const insertIndex =
       rjDragState.insertIndex === null ? getRjDropInsertIndex(listEl, event.clientY) : rjDragState.insertIndex;
-    const reorderedIds = getRjDraggableItems(listEl).map((item) => item.dataset.taskId);
+    const draggableItems = getRjDraggableItems(listEl);
+    const reorderedIds = draggableItems.map((item) => item.dataset.taskId);
     reorderedIds.splice(Math.max(0, Math.min(insertIndex, reorderedIds.length)), 0, rjDragState.taskId);
-    reorderRjListTasks(owner, kind, reorderedIds);
 
-    if (owner === "shared") {
-      saveSharedRjState();
+    if (kind === RJ_LIST_KIND_SCHEDULE) {
+      const dragDate = rjDragState.taskDate;
+
+      // Extract all draggable IDs for the dragged date in their new dropped order
+      const sameDayIds = [];
+      reorderedIds.forEach((id) => {
+        const el = listEl.querySelector(`[data-task-id="${id}"]`);
+        if (el && el.dataset.taskDate === dragDate) {
+          sameDayIds.push(id);
+        }
+      });
+
+      if (sameDayIds.length > 0) {
+        setScheduleDayOrder(dragDate, sameDayIds);
+
+        // Reorder mine tasks of that day in persistent state
+        const mineSameDayIds = sameDayIds.filter((id) => {
+          const el = listEl.querySelector(`[data-task-id="${id}"]`);
+          return el && el.dataset.owner === "mine";
+        });
+        if (mineSameDayIds.length > 0) {
+          reorderRjListTasks("mine", kind, mineSameDayIds);
+          saveState();
+        }
+
+        // Reorder shared tasks of that day in shared state
+        const sharedSameDayIds = sameDayIds.filter((id) => {
+          const el = listEl.querySelector(`[data-task-id="${id}"]`);
+          return el && el.dataset.owner === "shared";
+        });
+        if (sharedSameDayIds.length > 0) {
+          reorderRjListTasks("shared", kind, sharedSameDayIds);
+          saveSharedRjState();
+        }
+      }
     } else {
-      saveState();
+      reorderRjListTasks(owner, kind, reorderedIds);
+      if (owner === "shared") {
+        saveSharedRjState();
+      } else {
+        saveState();
+      }
     }
 
     cleanupRjDragState();
@@ -656,6 +734,14 @@ function wireRjListDragSurface(listEl, owner, kind) {
 }
 
 function isActiveRjDragSurface(listEl, owner, kind) {
+  if (kind === RJ_LIST_KIND_SCHEDULE) {
+    return (
+      rjDragState.listEl === listEl &&
+      rjDragState.kind === RJ_LIST_KIND_SCHEDULE &&
+      (rjDragState.owner === "mine" || rjDragState.owner === "shared") &&
+      Boolean(rjDragState.taskId)
+    );
+  }
   return (
     rjDragState.listEl === listEl &&
     rjDragState.owner === owner &&
@@ -677,6 +763,25 @@ function getRjDropInsertIndex(listEl, clientY) {
 
   if (insertIndex < 0) {
     insertIndex = taskItems.length;
+  }
+
+  if (rjDragState.kind === RJ_LIST_KIND_SCHEDULE) {
+    const dragDate = rjDragState.taskDate;
+    if (!dragDate) {
+      return insertIndex;
+    }
+    const sameDayIndices = [];
+    taskItems.forEach((item, index) => {
+      if (item.dataset.taskDate === dragDate) {
+        sameDayIndices.push(index);
+      }
+    });
+    if (sameDayIndices.length === 0) {
+      return insertIndex;
+    }
+    const start = sameDayIndices[0];
+    const end = sameDayIndices[sameDayIndices.length - 1] + 1;
+    return Math.max(start, Math.min(insertIndex, end));
   }
 
   if (rjDragState.kind !== RJ_LIST_KIND_TODO || !rjDragState.taskGroup) {
@@ -713,6 +818,15 @@ function reorderRjListTasks(owner, kind, reorderedIds) {
   const sourceTasks =
     owner === "shared" ? sharedRjState.tasks[kind] : state.listSets.rj.tasks.persistent;
   const draggedGroup = rjDragState.taskGroup;
+  let targetDate = rjDragState.taskDate;
+
+  if (!targetDate && kind === RJ_LIST_KIND_SCHEDULE) {
+    const firstTask = sourceTasks.find((t) => reorderedIds.includes(t.id));
+    if (firstTask) {
+      targetDate = getTaskAppearanceDateId(firstTask);
+    }
+  }
+
   const shouldReorder = (task) => {
     const taskKind = isRjScheduleTask(task) ? RJ_LIST_KIND_SCHEDULE : RJ_LIST_KIND_TODO;
 
@@ -722,6 +836,13 @@ function reorderRjListTasks(owner, kind, reorderedIds) {
 
     if (kind === RJ_LIST_KIND_TODO) {
       return getRjTaskGroup(task) === draggedGroup && isTaskVisibleInList("persistent", task);
+    }
+
+    if (kind === RJ_LIST_KIND_SCHEDULE) {
+      if (targetDate) {
+        return getTaskAppearanceDateId(task) === targetDate;
+      }
+      return isTaskVisibleInList("persistent", task);
     }
 
     return isTaskVisibleInList("persistent", task);
@@ -768,6 +889,7 @@ function cleanupRjDragState() {
     kind: null,
     taskId: null,
     taskGroup: null,
+    taskDate: null,
     insertIndex: null,
     listEl: null,
   };
